@@ -37,6 +37,10 @@ var allowed=[
   'luna://com.webos.service.utp.channel/setChannelSortMode',
   'luna://com.webos.applicationManager/launch',
   'luna://com.webos.applicationManager/getForegroundAppInfo',
+  'luna://com.webos.applicationManager/running',
+  'luna://com.webos.service.utp.broadcast/bind',
+  'luna://com.webos.service.utp.broadcast/getCurrentChannel',
+  'luna://com.webos.service.utp.broadcast/changeChannel',
   'luna://com.webos.service.wampluggable.dmost/getChannel',
   'luna://com.webos.service.wampluggable.dmost/setDmostUrl'
 ];

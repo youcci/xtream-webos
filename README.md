@@ -16,7 +16,7 @@ Includes **Xtream TV / Channel Room**, a remote-friendly TV app for entering an 
 - Refresh channels every 6 hours and the full Guide every 60 minutes by default. Current-channel updates run between full refreshes. Intervals are configurable.
 - Retain channel-number assignments, category selection and LG favourites/locks/groups across refreshes of the same account.
 - Restore the Guide snapshot and start services after a real reboot through Homebrew Channel startup hooks. No always-on computer or external streaming server is needed.
-- Recover a missing embedded player automatically when LG still owns an unlocked imported LiveTV channel. Checks leave other foreground apps, HDMI and locked channels alone.
+- Recover a missing page or hidden player app automatically for an unlocked imported LiveTV channel, including recreating the app and restoring the TV's selected channel after startup. Checks exclude other foreground apps, RF, HDMI and locked channels.
 - Replace LG's stock IP channel feed while retaining the native TV components needed for playback and Guide navigation.
 
 The development TV ended with **21 selected categories, 1,259 imported channels and 9,664 programme schedules**. ZDF picture and 3sat picture/audio were confirmed on the physical TV; ARTE and KiKA also reported advancing decoded playback. HDMI switching and reboot persistence were checked. These are recorded results from this setup, not guarantees for every provider stream.

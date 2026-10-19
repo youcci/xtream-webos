@@ -25,6 +25,8 @@ http.createServer(function(req,res){
   }
   if(req.method==='GET'&&p==='/status')return json(res,200,{ok:true,channels:manager.catalog.channels.length,player:manager.player,sync:manager.sync,guide:manager.guide,playbackRecovery:playbackWatchdog.state});
   if(req.method==='POST'&&p==='/telemetry')return body(req).then(function(v){
+    if(v.type==='bootstrap')manager.playerReadyAt=0;
+    if(v.type==='app_ready'&&v.returnValue===true)manager.playerReadyAt=Date.now();
     var c=manager.byNative[v.channelId];if(v.type==='snapshot')manager.player={channelId:v.channelId || null,streamId:c?c.id:null,name:c?c.name:null,currentTime:Number(v.currentTime)||0,readyState:v.readyState,paused:!!v.paused,width:v.width,height:v.height,error:v.error,active:!!v.active,updatedAt:Date.now()};
     if(c&&v.active&&v.readyState>=2&&manager.history.lastChannelId!==c.nativeId){manager.history.lastChannelId=c.nativeId;manager.persistHistory();}
     json(res,200,{ok:true});

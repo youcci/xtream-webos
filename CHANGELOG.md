@@ -1,5 +1,14 @@
 # Change log
 
+## Unreleased — cold-start player recovery (2026-10-19)
+
+- Observed a recurring black screen after a real reboot: the hidden native player app was absent, no player telemetry had arrived, and its WAM methods timed out. The first recovery worker could not progress because it queried that absent player before starting it.
+- Read actual selection through the native UTP binding/current-channel path. This works independently of the player and avoids the TV adapter's caller restrictions. Check foreground, import ownership and explicit unlocked state before starting the hidden player, loading the page and replaying the still-selected channel.
+- Handle partial startup with fresh but inactive telemetry and an uninitialized native channel. Add bounded launch readiness, selection-change guards and stage-specific diagnostics. No historical/default channel fallback is used.
+- Wait for the page's actual `app_ready` acknowledgement before replay. LiveTV's duplicate UI channel selection was a no-op, so use UTP's existing binding and `changeChannel` with `update:true`. A live LS2 trace confirmed that this emits the native Dmost `setChannel` for the same selected channel.
+- Expand the playback regression suite from seven to fifteen cases, including cold startup, RF/locked exclusions, partial startup, user selection changes, failed launch readiness and missing page acknowledgement.
+- Verified the missing-app path on the TV by closing the real hidden player app. Independent selection reads continued working while it was absent; automatic recovery started it once, reloaded once and performed one native replay, restoring the same channel at 720p after 26.9 seconds. This reproduces the missing-app condition; it is not a claim that another complete TV reboot was tested.
+
 ## Unreleased — missing-player recovery (2026-10-19)
 
 - Diagnosed all-channel black video with healthy native channel/Guide data and working upstream HLS. The embedded player's heartbeat had stopped; reapplying its local Dmost URL restored playback, with picture/audio confirmed by the owner.

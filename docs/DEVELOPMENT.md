@@ -38,7 +38,7 @@ The EPG suite covers time offsets/DST, chunked Unicode and CDATA, invalid/entity
 
 Tests do not replace physical tuning, sound, native Guide lifecycle, HDMI transition, root persistence or fresh-install/uninstall validation. Do not run category-mutating tests on a user's live selection. The hardware video layer needs physical confirmation.
 
-Playback recovery tests cover native ownership/foreground gates, locked/foreign channels, healthy heartbeats, startup grace, cooldown, in-flight heartbeat recovery, sanitized errors and overlapping checks. Do not induce a blank player on a live TV without accounting for the viewer; a real recovery test briefly interrupts video.
+Playback recovery tests cover native ownership/foreground gates, RF/locked/foreign channels, healthy heartbeats, startup/transition grace, cooldown, in-flight heartbeat recovery, sanitized errors, overlapping checks, missing-app startup, selection changes, bounded launch readiness and page acknowledgement before native replay. Distinguish a missing page from a missing app when reproducing a failure. Do not induce a blank player on a live TV without accounting for the viewer; a real recovery test briefly interrupts video.
 
 ## Packaging
 

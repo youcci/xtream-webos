@@ -32,7 +32,7 @@ The first ZDF proof of concept bypassed parts of the full native tuning path. A 
 
 Try a small category selection and use **Channels → Watch**. Read `player.active`, `readyState`, decoded width/height, error and advancing `currentTime` in status. A provider HTTP error, expired account, connection limit, incompatible codec or unavailable stream needs a different remedy than a stale native map. The app tests account acceptance but cannot guarantee each upstream channel.
 
-If every channel goes black and `player.updatedAt` stops advancing while the services/native channel remain healthy, the embedded Dmost page may have stopped. The playback watchdog now detects a missing heartbeat and reloads it while native LiveTV owns an imported, unlocked channel, usually within about 15–25 seconds after the last heartbeat. Check `playbackRecovery` in status. It does not interrupt another foreground app, an external input or a locked/stopped channel, and does not retry more than once a minute. Give startup its initial grace period.
+If every channel goes black and `player.updatedAt` stops advancing while the services/native channel remain healthy, the embedded Dmost page may have stopped. The watchdog checks the TV's actual selection independently of that page and can either reload it or start a missing hidden player app, then replay the same selected channel. Check `playbackRecovery` counters, `reason`, `lastStage` and `lastError`. It excludes another foreground app, RF/foreign/locked channels and explicit native stop/block states, and limits attempts to once a minute. Missing-heartbeat recovery normally begins after 15–25 seconds, with additional startup/readiness time when the app itself must be recreated.
 
 For an older runtime without this recovery, the following root-shell command reapplies the local player URL without changing the channel selection:
 
@@ -42,9 +42,21 @@ luna-send -w 15000 -n 1 luna://com.webos.service.wampluggable.dmost/setDmostUrl 
 
 A live missing-player recovery test is documented in the change log. Recovery of a stopped page does not establish the native lifecycle event that stopped it; no such event trace was available for the original failure.
 
+If the hidden `com.webos.app.livedmost` app is absent after boot, its WAM methods may not respond at all. Reapplying the URL alone is insufficient in that state. The updated watchdog starts it through the application manager, loads the local page and resends the TV's selected channel. The earlier watchdog did not handle this case. Do not use a stale history entry to decide which channel to restore, and do not use the boot service's last-channel value as current selection; it returned a default RF channel during this investigation.
+
+The page must acknowledge readiness before the native handoff. Also, launching LiveTV with the same selected channel may be accepted without retuning; the updated recovery uses the existing native broadcast binding and an explicit channel update. An `awaiting-playback` stage or an API acknowledgement alone does not prove picture/audio: verify active telemetry, decoded dimensions and advancing time, then the TV output.
+
 ## Player reports playback, screenshot is black
 
 LG's compositor capture excludes hardware video. A black/missing video plane is expected in these screenshots. Confirm picture and sound on the TV itself; decoder dimensions/time provide supporting diagnostics, not proof of visible output. Native Guide may also show a “click to play” preview until selected.
+
+On the tested firmware, a different native capture method **did** include Xtream video plus menus. The CLI `screenshot` command still uses the graphics-only compositor method. For a full capture on this TV, use the following root-shell command and retrieve the resulting PNG privately:
+
+```sh
+luna-send -w 18000 -n 1 luna://com.webos.service.capture/executeOneShot '{"path":"/tmp/tv-with-video.png","method":"SCREEN_WITH_SOURCE_VIDEO","format":"PNG","width":1920,"height":1080}' < /dev/zero
+```
+
+See the [webOS Homebrew screenshot commands](https://www.webosbrew.org/pages/commands-cheatsheet#screenshots) for other method/service variants. This was verified for our native Xtream playback; other firmware/input combinations remain untested. No captured video frames are bundled in this repository.
 
 ## Nothing starts after power-on
 
