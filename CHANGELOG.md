@@ -7,7 +7,8 @@
 - Handle partial startup with fresh but inactive telemetry and an uninitialized native channel. Add bounded launch readiness, selection-change guards and stage-specific diagnostics. No historical/default channel fallback is used.
 - Wait for the page's actual `app_ready` acknowledgement before replay. LiveTV's duplicate UI channel selection was a no-op, so use UTP's existing binding and `changeChannel` with `update:true`. A live LS2 trace confirmed that this emits the native Dmost `setChannel` for the same selected channel.
 - Expand the playback regression suite from seven to fifteen cases, including cold startup, RF/locked exclusions, partial startup, user selection changes, failed launch readiness and missing page acknowledgement.
-- Verified the missing-app path on the TV by closing the real hidden player app. Independent selection reads continued working while it was absent; automatic recovery started it once, reloaded once and performed one native replay, restoring the same channel at 720p after 26.9 seconds. This reproduces the missing-app condition; it is not a claim that another complete TV reboot was tested.
+- Verified the missing-app path on the TV by closing the real hidden player app. Independent selection reads continued working while it was absent; automatic recovery started it once, reloaded once and performed one native replay, restoring the same channel at 720p after 26.9 seconds.
+- Subsequently verified a complete TV reboot with Developer Mode absent. Both services, all 1,259 selected channels and Guide data returned. LG initially selected its default terrestrial channel; selecting the previously watched Xtream channel restored active 720p playback without watchdog intervention. A video-inclusive native capture confirmed a rendered frame. This boot exercised normal startup; the separate app-close test exercised missing-app recovery.
 
 ## Unreleased — missing-player recovery (2026-10-19)
 

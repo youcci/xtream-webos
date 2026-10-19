@@ -62,6 +62,8 @@ See the [webOS Homebrew screenshot commands](https://www.webosbrew.org/pages/com
 
 Allow roughly 60 seconds after a real boot. Confirm Homebrew Channel root/startup scripts, the `/var/lib/xtream-native/enabled` marker and both hooks. Check free space and boot logs. A firmware-profile/hash failure deliberately stops mounting incompatible files; review compatibility before regenerating anything. Remote power-off may suspend instead of rebooting.
 
+On the tested TV, a verified full reboot returned LiveTV to its default terrestrial channel. Selecting an imported Xtream channel then played normally. The recovery worker intentionally leaves a terrestrial selection alone; it does not automatically choose a channel from history.
+
 ## Native requests fail or Node aborts
 
 The manager must use the resident provider's `native.sock` LS2 bridge. Do not replace it with repeated Node child-process `luna-send` calls. Standalone CLI calls on this firmware need `< /dev/zero`. Avoid feeding a script to the TV's Node 8 stdin when it spawns children; use a file or `node -e` instead. The host tool compresses long `node -e` scripts to fit Dropbear's remote-command limit.
