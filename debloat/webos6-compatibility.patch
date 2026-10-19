@@ -1,0 +1,102 @@
+--- upstream/webos-debloat.sh
++++ webos-debloat-webos6.sh
+@@ -16,8 +16,8 @@
+ #      later bad run cannot quietly destroy the audit trail.
+ #
+ # WHAT IT CHANGES
+-#   Hiding: /var/preferences/com.webos.applicationManager/blockedSystemAppList/<REGION>.json
+-#   contains  {"blocked_system_applist":["com.webos.app.x", ...]}
++#   Hiding: /var/preferences/com.webos.applicationManager/blockedAppList/<REGION>.json
++#   contains  {"blocked_applist":["com.webos.app.x", ...]}
+ #   Any app ID in that array is hidden from the launcher. The binaries stay
+ #   on disk and launch normally if something else calls them. Removing the
+ #   ID from the array brings the tile back. This is LG's own regional app
+@@ -71,7 +71,12 @@
+ # shellcheck disable=SC2086
+ set -u
+ 
+-APPS_DIR=/var/preferences/com.webos.applicationManager/blockedSystemAppList
++# Local compatibility for OLED55G19LA, webOS 6.5.3 (03.53.45).
++# This firmware uses blockedAppList / blocked_applist.
++# Its luna-send exits on stdin EOF; keep stdin open for SSH and boot hooks.
++luna_send() { /usr/bin/luna-send "$@" < /dev/zero; }
++
++APPS_DIR=/var/preferences/com.webos.applicationManager/blockedAppList
+ BACKUP_DIR=/var/lib/webos-debloat
+ HOOK=/var/lib/webosbrew/init.d/50-debloat
+ STATE=$BACKUP_DIR/state
+@@ -319,7 +324,7 @@
+     awk '
+         { buf = buf $0 "\n" }
+         END {
+-            i = index(buf, "\"blocked_system_applist\"")
++            i = index(buf, "\"blocked_applist\"")
+             if (i > 0) {
+                 rest = substr(buf, i)
+                 j = index(rest, "[")
+@@ -350,7 +355,7 @@
+         if [ -n "$body" ]; then body="$body,\"$id\""; else body="\"$id\""; fi
+     done
+     tmp="$file.tmp.$$"
+-    printf '{"blocked_system_applist":[%s]}\n' "$body" > "$tmp" || die "cannot write $tmp"
++    printf '{"blocked_applist":[%s]}\n' "$body" > "$tmp" || die "cannot write $tmp"
+     mv -f "$tmp" "$file" || die "cannot replace $file"
+ }
+ 
+@@ -677,7 +682,7 @@
+ # them with --preload-sync.
+ wait_preload_svc() {
+     tries=0
+-    until luna-send -n 1 "$PRELOAD_SVC/getPreloadPolicy" '{}' 2>/dev/null | grep -q '"returnValue":[[:space:]]*true'; do
++    until luna_send -n 1 "$PRELOAD_SVC/getPreloadPolicy" '{}' 2>/dev/null | grep -q '"returnValue":[[:space:]]*true'; do
+         tries=$((tries + 1))
+         [ "$tries" -ge 30 ] && die "preload manager not responding"
+         sleep 2
+@@ -686,7 +691,7 @@
+ 
+ set_preload() {
+     # $1 id, $2 true|false
+-    r=$(luna-send -n 1 "$PRELOAD_SVC/setPreloadPolicy" "{\"application\":{\"id\":\"$1\",\"isEnabled\":$2}}" 2>&1)
++    r=$(luna_send -n 1 "$PRELOAD_SVC/setPreloadPolicy" "{\"application\":{\"id\":\"$1\",\"isEnabled\":$2}}" 2>&1)
+     case "$r" in
+         *'"returnValue":true'*) return 0 ;;
+         *) warn "setPreloadPolicy $1: $r"; return 1 ;;
+@@ -706,10 +711,10 @@
+ 
+ # close an already-preloaded instance, unless the user is looking at it
+ close_preloaded() {
+-    fg=$(luna-send -n 1 "$SAM_SVC/getForegroundAppInfo" '{}' 2>/dev/null)
++    fg=$(luna_send -n 1 "$SAM_SVC/getForegroundAppInfo" '{}' 2>/dev/null)
+     case "$fg" in *"\"appId\":\"$1\""*) return 0 ;; esac
+-    luna-send -n 1 "$SAM_SVC/running" '{}' 2>/dev/null | grep -q "\"$1\"" || return 0
+-    luna-send -n 1 "$SAM_SVC/closeByAppId" "{\"id\":\"$1\"}" >/dev/null 2>&1 \
++    luna_send -n 1 "$SAM_SVC/running" '{}' 2>/dev/null | grep -q "\"$1\"" || return 0
++    luna_send -n 1 "$SAM_SVC/closeByAppId" "{\"id\":\"$1\"}" >/dev/null 2>&1 \
+         && log "  closed resident $1"
+ }
+ 
+@@ -768,13 +773,13 @@
+ # TV had before (which is not always "on").
+ get_setting() {
+     # $1 category, $2 key; prints the value, or nothing if the key is absent
+-    luna-send -n 1 "$SETTINGS_SVC/getSystemSettings" "{\"category\":\"$1\",\"keys\":[\"$2\"]}" 2>/dev/null \
++    luna_send -n 1 "$SETTINGS_SVC/getSystemSettings" "{\"category\":\"$1\",\"keys\":[\"$2\"]}" 2>/dev/null \
+         | sed -n "s/.*\"$2\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p"
+ }
+ 
+ set_setting() {
+     # $1 category, $2 key, $3 value
+-    r=$(luna-send -n 1 "$SETTINGS_SVC/setSystemSettings" "{\"category\":\"$1\",\"settings\":{\"$2\":\"$3\"}}" 2>&1)
++    r=$(luna_send -n 1 "$SETTINGS_SVC/setSystemSettings" "{\"category\":\"$1\",\"settings\":{\"$2\":\"$3\"}}" 2>&1)
+     case "$r" in
+         *'"returnValue":true'*) return 0 ;;
+         *) warn "setSystemSettings $1/$2: $r"; return 1 ;;
+@@ -849,7 +854,7 @@
+     cat > "$HOOK" <<EOF
+ #!/bin/sh
+ # Re-assert the debloat list at boot: the application manager can rewrite
+-# blockedSystemAppList on its own after a component update.
++# blockedAppList on its own after a component update.
+ # Installed by webos-debloat.sh. Remove with --remove-boot-hook.
+ sleep 5
+ [ -x "$persistent" ] && "$persistent" --apply $apply_args >>"$BACKUP_DIR/boot.log" 2>&1

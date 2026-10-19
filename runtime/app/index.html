@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Channel room</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><img src="icon.svg" alt="" width="54" height="54"><div>CHANNEL<br>ROOM<span>Make yourself at home.</span></div></div>
+      <nav class="navigation" aria-label="Main navigation" data-nav-scope="navigation">
+        <button id="nav-overview" class="nav-button selected" type="button" data-view="overview" aria-current="page"><svg class="icon nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M11 4v16"/></svg>Overview<span class="nav-dot"></span></button>
+        <button id="nav-channels" class="nav-button" type="button" data-view="channels"><svg class="icon nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 6h11M9 12h11M9 18h11M4 6h1M4 12h1M4 18h1"/></svg>Channels<span class="nav-dot"></span></button>
+        <button id="nav-categories" class="nav-button" type="button" data-view="categories"><svg class="icon nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="m7 12 3 3 7-7"/></svg>Categories<span class="nav-dot"></span></button>
+        <button id="nav-account" class="nav-button" type="button" data-view="account"><svg class="icon nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="9" r="3"/><path d="M6.5 19v-1a5.5 5.5 0 0 1 11 0v1"/></svg>Account<span class="nav-dot"></span></button>
+      </nav>
+      <div class="sidebar-bottom"><div class="connection"><span id="connection-dot" class="connection-dot"></span><span id="connection-label">Connecting to your TV</span></div><div class="native-label">MADE FOR LG LIVE TV</div><p>Arrow keys to move.<br>OK to choose. Back to return.</p></div>
+    </aside>
+
+    <main id="main-content" class="main-content">
+      <header class="masthead"><div><div class="eyebrow">YOUR TELEVISION</div><h1 id="view-title">At a glance</h1></div><time id="clock" class="clock"></time></header>
+      <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+      <section id="job-banner" class="job-banner" aria-label="Update progress" hidden>
+        <div class="job-copy"><span class="working-dot"></span><strong id="job-title">Updating channels</strong><span id="job-phase">Preparing your library</span><span id="job-percent"></span></div>
+        <div class="progress-track" role="progressbar" aria-label="Update progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="job-progress" class="progress-fill"></div></div>
+      </section>
+
+      <section id="view-overview" class="view" aria-label="Overview">
+        <div class="hero">
+          <div class="hero-copy"><div class="eyebrow accent">A PLACE FOR EVERY CHANNEL</div><h2 id="hero-title">Bring your<br>channels home.</h2><p id="hero-description">Connect your account. Find your favourites in LG’s familiar channel list and TV Guide.</p><div class="hero-actions" data-nav-scope="hero"><button id="open-guide" class="button button-primary" type="button"><svg class="icon button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 19 19 5M6 5h13v13"/></svg>Open TV Guide</button><button id="browse-channels" class="button button-secondary" type="button">Browse channels<svg class="icon icon-tail" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 12h15m-6-6 6 6-6 6"/></svg></button><button id="setup-account" class="text-button" type="button">Connect an account<svg class="icon icon-tail" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 12h15m-6-6 6 6-6 6"/></svg></button></div><div class="hero-footnote">Your channels play in LG’s original Live TV.</div></div>
+          <div class="dial-art" aria-hidden="true"><div class="dial-orbit orbit-one"></div><div class="dial-orbit orbit-two"></div><div class="dial-face"><div class="dial-line"></div><span class="dial-small">THE EVENING IS YOURS</span><div class="dial-mark">live<span>TV</span></div><span class="dial-bottom"><span></span> READY WHEN YOU ARE</span></div><div class="dial-pointer"></div></div>
+        </div>
+
+        <div class="library-strip" aria-label="Your library"><div><span id="count-channels" class="metric-value">—</span><span class="metric-label">Live channels</span></div><div><span id="count-categories" class="metric-value">—</span><span class="metric-label">Categories to explore</span></div><div><span id="count-programmes" class="metric-value">—</span><span class="metric-label">Guide programmes</span></div><div class="library-status"><span id="library-label" class="status-label">LET’S GET STARTED</span><p id="library-detail">Your account keeps everything together.</p></div></div>
+
+        <section class="maintenance" aria-labelledby="maintenance-title"><div class="section-heading"><h3 id="maintenance-title">Keep the evening up to date.</h3><span id="next-sync">Automatic updates after setup</span></div><div class="maintenance-row" data-nav-scope="updates"><div class="update-copy"><span class="update-index">01</span><div><h4>Channel library</h4><p id="last-sync">No update yet</p><p id="sync-error" class="inline-error" hidden></p></div></div><button id="sync-channels" class="button button-outline" type="button" disabled>Update channels<svg class="icon icon-tail" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 11a8 8 0 1 0-2.3 6M20 4v7h-7"/></svg></button></div><div class="maintenance-row" data-nav-scope="guide-update"><div class="update-copy"><span class="update-index">02</span><div><h4>Programme guide</h4><p id="last-guide">No guide update yet</p><p id="guide-error" class="inline-error" hidden></p></div></div><button id="refresh-guide" class="button button-outline" type="button" disabled>Refresh guide<svg class="icon icon-tail" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 11a8 8 0 1 0-2.3 6M20 4v7h-7"/></svg></button></div></section>
+      </section>
+
+      <section id="view-channels" class="view" aria-label="Channels" hidden>
+        <div class="channels-heading"><div><h2 class="display-heading">Find your next favourite.</h2><p>Browse here. Watch in the original Live TV player.</p></div><span id="channel-total" class="result-total">— channels</span></div>
+        <div class="channels-shell">
+          <aside class="category-panel"><div class="panel-eyebrow">CATEGORIES</div><div id="category-list" class="category-list" data-nav-scope="categories"><button id="category-all" class="category-button active" type="button" data-category="" aria-pressed="true"><span>All channels</span><span class="category-count">—</span></button></div></aside>
+          <div class="channel-panel">
+            <form id="search-form" class="search-form" role="search" data-nav-scope="search"><label class="search-box" for="channel-search"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><input id="channel-search" type="search" autocomplete="off" placeholder="Search your channels" aria-label="Search your channels"></label><button id="search-button" class="button button-outline" type="submit">Search</button></form>
+            <div class="list-heading"><h3 id="category-title">All channels</h3><span id="page-range">Loading your library</span></div>
+            <div id="channel-state" class="empty-state" role="status"><span class="empty-symbol" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8" stroke-dasharray="2 4"/></svg></span><h4>Loading your channels</h4><p>Making room for your next watch.</p></div>
+            <div id="channel-list" class="channel-list" data-nav-scope="channel-list" aria-label="Channel results"></div>
+            <div class="pagination" data-nav-scope="pagination"><button id="previous-page" class="button button-quiet" type="button" disabled><svg class="icon icon-leading" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 12H5m6-6-6 6 6 6"/></svg>Previous</button><span id="page-label">Page 1</span><button id="next-page" class="button button-quiet" type="button" disabled>Next<svg class="icon icon-tail" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 12h15m-6-6 6 6-6 6"/></svg></button></div>
+            <p class="category-note">This browser shows your imported channels. Choose your Live TV lineup in Categories.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-categories" class="view" aria-label="Category selection" hidden>
+        <div class="selection-heading"><div class="eyebrow accent">A LINE-UP THAT FEELS LIKE YOU</div><h2 class="display-heading">Your TV. Your choice.</h2><p>Only selected categories appear in LG Live TV and Guide. Background updates keep your selection.</p></div>
+        <div class="selection-layout">
+          <div class="selection-panel">
+            <form id="selection-search-form" class="search-form" role="search" data-nav-scope="selection-search"><label class="search-box" for="selection-search"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><input id="selection-search" type="search" autocomplete="off" placeholder="Find a country, language or category" aria-label="Search categories"></label><button id="selection-search-button" class="button button-outline" type="submit">Search</button></form>
+            <div class="selection-toolbar" data-nav-scope="selection-tools"><span id="selection-visible-count">Loading categories…</span><div><button id="selection-select-all" class="selection-tool" type="button" disabled>Select all</button><button id="selection-clear" class="selection-tool" type="button" disabled>Clear</button></div></div>
+            <p class="selection-tool-hint">Select all and Clear affect every category, including search results you cannot see.</p>
+            <div id="selection-list" class="selection-list" data-nav-scope="selection-list" role="group" aria-label="Categories to import"></div>
+            <div id="selection-empty" class="selection-empty" role="status">Loading your available categories…</div>
+          </div>
+          <aside class="selection-summary" aria-label="Your selection">
+            <div class="eyebrow accent">YOUR SELECTION</div><div id="selection-channel-count" class="selection-channel-count">—</div><div class="selection-count-label">channels for Live TV</div><p id="selection-category-count" class="selection-category-count">Choose the categories you enjoy.</p>
+            <div class="selection-summary-rule"></div><p id="selection-saved-state" class="selection-saved-state">Your current lineup stays in place until you apply.</p><p id="selection-zero-note" class="selection-zero-note" hidden>Applying an empty selection removes all imported channels from LG Live TV and Guide.</p>
+            <div data-nav-scope="selection-apply"><button id="selection-apply" class="button button-primary" type="button" disabled><span id="selection-apply-label">Apply selection</span><svg class="icon icon-tail" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 12h15m-6-6 6 6-6 6"/></svg></button><button id="selection-open-guide" class="button button-outline" type="button" disabled>Open TV Guide<svg class="icon icon-tail" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 19 19 5M6 5h13v13"/></svg></button><button id="selection-retry" class="selection-tool" type="button" hidden>Try loading again</button></div>
+            <p class="selection-remote-hint">OK selects a category. Back leaves a search field. Your changes wait here until you apply.</p>
+            <div id="selection-message" class="selection-message" role="status" aria-live="polite" hidden></div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="view-account" class="view" aria-label="Account" hidden>
+        <div class="account-heading"><div class="eyebrow accent">ONE CONNECTION. YOUR WHOLE LINE-UP.</div><h2 class="display-heading">Make it yours.</h2><p>Your Xtream account supplies the channels and programme guide.</p></div>
+        <form id="account-form" novalidate>
+          <div class="account-layout">
+            <section class="account-panel" data-nav-scope="account-fields" aria-labelledby="account-title"><div class="panel-title"><span class="panel-number">01</span><h3 id="account-title">Account details</h3><span id="account-state" class="small-tag">NOT CONNECTED</span></div><div class="field"><label for="server-url">Server address</label><input id="server-url" type="url" inputmode="url" autocomplete="url" spellcheck="false" placeholder="https://your-provider.example:8080" required><span class="field-note">Include http:// or https:// and the port, if supplied.</span></div><div class="field"><label for="username">Username</label><input id="username" type="text" autocomplete="username" spellcheck="false" placeholder="Your account username" required></div><div class="field"><label for="password">Password</label><div class="password-control"><input id="password" type="password" autocomplete="new-password" placeholder="Your account password"><button id="show-password" class="password-toggle" type="button" aria-pressed="false">Show</button></div><span id="password-note" class="field-note">Your password is stored on this TV and never shown here.</span></div><p class="input-hint">Press OK to type. Use Back to leave a field.</p></section>
+            <section class="schedule-panel" data-nav-scope="schedule" aria-labelledby="schedule-title"><div class="panel-title"><span class="panel-number">02</span><h3 id="schedule-title">A little upkeep.<br>Handled for you.</h3></div><p>Choose how often the TV checks for changes.</p><div class="field"><label for="sync-hours">Update channels every</label><div class="number-control"><input id="sync-hours" type="number" min="1" max="168" value="6" inputmode="numeric"><span>hours</span></div></div><div class="field"><label for="epg-minutes">Refresh the guide every</label><div class="number-control"><input id="epg-minutes" type="number" min="5" max="1440" value="60" inputmode="numeric"><span>minutes</span></div></div><div class="schedule-note"><span class="small-orbit" aria-hidden="true"></span><p>Updates run quietly while your TV is on. Your last successful library stays available.</p></div></section>
+          </div>
+          <div id="account-message" class="account-message" role="status" aria-live="polite" hidden></div><div class="account-actions" data-nav-scope="account-actions"><div><button id="save-account" class="button button-primary" type="submit"><span id="save-account-label">Save &amp; sync</span><svg class="icon icon-tail" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 12h15m-6-6 6 6-6 6"/></svg></button><button id="test-account" class="button button-outline" type="button">Test account</button></div><p>Account details stay on your TV.</p></div>
+        </form>
+      </section>
+      <footer class="main-footer"><span>CHANNEL ROOM</span><span>A familiar guide. A wider world.</span></footer>
+    </main>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

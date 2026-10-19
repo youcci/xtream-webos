@@ -1,0 +1,54 @@
+{
+  "policy": {
+    "ipOPSupport": true,
+    "ottEPGSupport": false,
+    "returnValue": true,
+    "ipCableSupport": true,
+    "mergedEPGSupport": true,
+    "guideDetailSupport": true,
+    "ipSatelliteSupport": true,
+    "baseEpgOnline": false,
+    "ottChannelSupport": false,
+    "stbOnlineChannelSupport": false,
+    "ipOnlineEPGSupport": true,
+    "ipAntennaSupport": true,
+    "subscribed": false,
+    "ipOnlineChannelSupport": true,
+    "tunerOnlineChannelSupport": true,
+    "stbOnlineEPGSupport": false,
+    "tunerOnlineEPGSupport": true
+  },
+  "status": {
+    "ottEPGSupport": false,
+    "returnValue": true,
+    "networkStatus": true,
+    "guideDetailSupport": true,
+    "baseEpgOnline": false,
+    "mergedEPGSupport": true,
+    "ottChannelSupport": false,
+    "stbOnlineChannelSupport": false,
+    "stbEpgStatus": {
+      "statusValue": false,
+      "errorCodeNumber": 1031,
+      "dataType": 2,
+      "type": 1,
+      "errorText": "this country does not support online channel"
+    },
+    "ipOnlineEPGSupport": true,
+    "subscribed": false,
+    "ipOnlineChannelSupport": true,
+    "tunerOnlineChannelSupport": true,
+    "ipEpgStatus": {
+      "statusValue": true,
+      "dataType": 2,
+      "type": 1
+    },
+    "tunerEpgStatus": {
+      "statusValue": true,
+      "dataType": 1,
+      "type": 0
+    },
+    "stbOnlineEPGSupport": false,
+    "tunerOnlineEPGSupport": true
+  }
+}

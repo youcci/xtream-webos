@@ -1,0 +1,3 @@
+#!/bin/sh
+# Bind-mounted over the stock LG feed executable; firmware bytes stay intact.
+exit 1

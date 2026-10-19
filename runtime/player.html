@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Xtream native playback</title>
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }
+    #stream { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; background: transparent; }
+  </style>
+</head>
+<body>
+  <video id="stream" autoplay playsinline></video>
+  <script>
+  (function () {
+    'use strict';
+    // Embedded livedmost bootstrap only. No standalone app, channel database
+    // writes, tuning requests, provider credentials, or credential URLs here.
+    var video = document.getElementById('stream');
+    var bridges = [];
+    var channel = null;
+    var current = null;
+    var active = false;
+    var closed = false;
+    var generation = 0;
+    var lastSignal = null;
+    var snapshots = 0;
+    var resumeTimer = null;
+    var injectedReady = false;
+    var endpoint = 'luna://com.webos.service.wampluggable.dmost/';
+    window.nativeChannelProof = { bridges: bridges };
+
+    function hasInjection() {
+      return typeof Dmost === 'object' && Dmost && Dmost.injection &&
+        typeof Dmost.injection.call === 'function' && typeof Dmost.injection.subscribe === 'function';
+    }
+
+    function decode(raw) {
+      return typeof raw === 'string' ? JSON.parse(raw) : raw;
+    }
+
+    function telemetry(data) {
+      if (closed) return;
+      try {
+        fetch('/telemetry', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data), cache: 'no-store'
+        }).catch(function () {});
+      } catch (_) {}
+    }
+
+    function snapshot() {
+      var frames = null;
+      try {
+        if (video.getVideoPlaybackQuality) frames = video.getVideoPlaybackQuality().totalVideoFrames;
+        else if (typeof video.webkitDecodedFrameCount === 'number') frames = video.webkitDecodedFrameCount;
+      } catch (_) {}
+      telemetry({ type: 'snapshot', sequence: ++snapshots,
+        currentTime: Number(video.currentTime) || 0, readyState: video.readyState,
+        paused: video.paused, width: video.videoWidth, height: video.videoHeight,
+        error: video.error ? video.error.code : null, frames: frames,
+        active: active, channelId: current });
+    }
+
+    function blockMedia(blocked) {
+      // The shipped launcher toggles this native resource gate on RF/IP changes.
+      try {
+        if (typeof navigator.setBlockedMediaOnWebOSTV === 'function') {
+          navigator.setBlockedMediaOnWebOSTV(blocked);
+        }
+      } catch (_) { telemetry({ type: 'media_gate_error' }); }
+    }
+
+    function stop(reason, block) {
+      generation++;
+      if (resumeTimer !== null) { clearTimeout(resumeTimer); resumeTimer = null; }
+      var wasActive = active;
+      active = false;
+      current = null;
+      try { video.pause(); } catch (_) {}
+      video.removeAttribute('src');
+      try { video.load(); } catch (_) {}
+      if (block) blockMedia(true);
+      if (wasActive) telemetry({ type: 'stopped', reason: reason });
+      snapshot();
+    }
+
+    function requestPlay(thisGeneration, attempt) {
+      if (thisGeneration !== generation || !active || !video.paused) return;
+      try {
+        var result = video.play();
+        if (result && result.catch) result.catch(function (error) {
+          if (thisGeneration !== generation || !active) return;
+          // Name only: raw error messages can contain stream URLs.
+          telemetry({ type: 'play_rejected', name: error && error.name || 'Error' });
+          // Input activation can abort the first play while native resources move.
+          if (error && (error.name === 'AbortError' || error.name === 'NotAllowedError') && attempt < 6) {
+            if (resumeTimer !== null) clearTimeout(resumeTimer);
+            resumeTimer = setTimeout(function () { resumeTimer = null; requestPlay(thisGeneration, attempt + 1); }, 500);
+          }
+          snapshot();
+        });
+      } catch (_) { telemetry({ type: 'play_threw' }); }
+    }
+
+    function play() {
+      if (!channel) return;
+      if (active) { requestPlay(generation, 0); return; }
+      active = true;
+      current = channel.channelId;
+      var thisGeneration = ++generation;
+      blockMedia(false);
+      video.src = channel.stream;
+      telemetry({ type: 'play_requested', channelId: current });
+      requestPlay(thisGeneration, 0);
+    }
+
+    function onChannel(signal) {
+      lastSignal = signal;
+      if (!signal || signal.returnValue !== true) {
+        telemetry({ type: 'channel_error', errorCode: signal && signal.errorCode || null });
+        stop('channel_error', false);
+        return;
+      }
+      // Subscription acknowledgement may precede the first channel payload.
+      if (typeof signal.channelId !== 'string') return;
+      telemetry({ type: 'channel', channelId: signal.channelId,
+        channelChange: signal.channelChange || '', channelStateCode: signal.channelStateCode });
+      var id = signal.channelId;
+      var blocked = /^(locked|block|blocked|stop|deactivate)$/i.test(signal.channelChange || '');
+      if (!id || id === '_' || blocked) {
+        stop(blocked ? 'locked_or_stopped' : 'other_input', !id || id === '_');
+        return;
+      }
+      if (channel && channel.channelId === id && active) { requestPlay(generation, 0); return; }
+      stop('channel_change', false);
+      var lookupGeneration = generation;
+      fetch('/channel?id=' + encodeURIComponent(id), {cache:'no-store'}).then(function(response) {
+        if (!response.ok) throw new Error('unknown_channel');
+        return response.json();
+      }).then(function(config) {
+        if (lookupGeneration !== generation) return;
+        channel = config;
+        play();
+      }).catch(function() { if (lookupGeneration === generation) stop('unknown_channel',false); });
+    }
+
+    function luna(method, payload, callback) {
+      if (injectedReady) {
+        var request = { method: method, payload: payload };
+        bridges.push(request);
+        request.success = function (raw) {
+          try { callback(decode(raw)); }
+          catch (_) { telemetry({ type: 'bridge_response_error', method: method }); }
+        };
+        request.failure = function () {
+          telemetry({ type: 'bridge_error', method: method });
+          if (method === 'getChannel') stop('channel_bridge_error', false);
+        };
+        if (method === 'getChannel') {
+          Dmost.injection.subscribe(method, JSON.stringify(payload), request.success, request.failure);
+        } else {
+          Dmost.injection.call(method, JSON.stringify(payload), request.success, request.failure);
+        }
+        return request;
+      }
+      var bridge = new PalmServiceBridge();
+      bridges.push(bridge); // Native bridges must outlive their subscriptions.
+      bridge.onservicecallback = function (raw) {
+        try { callback(JSON.parse(raw)); }
+        catch (_) { telemetry({ type: 'bridge_response_error', method: method }); }
+      };
+      bridge.call(endpoint + method, JSON.stringify(payload));
+      return bridge;
+    }
+
+    function initializeBridge(done) {
+      if (!hasInjection()) {
+        telemetry({ type: 'bridge_initialized', bridge: 'psb' });
+        done();
+        return;
+      }
+      // This matches LG's InjectionBridgeAdapter. The injected API expects a
+      // base64 method-to-Luna-URI map, not JSON and not a dmost/call wrapper.
+      var request = { method: 'init' };
+      bridges.push(request);
+      request.success = function (raw) {
+        var response;
+        try { response = decode(raw); }
+        catch (_) { telemetry({ type: 'bridge_init_response_error' }); return; }
+        if (response && response.returnValue === false) {
+          telemetry({ type: 'bridge_init_failed' });
+          return;
+        }
+        injectedReady = true;
+        telemetry({ type: 'bridge_initialized', bridge: 'injection' });
+        done();
+      };
+      request.failure = function () { telemetry({ type: 'bridge_init_failed' }); };
+      Dmost.injection.call('init', btoa(JSON.stringify({
+        getChannel: endpoint + 'getChannel', appReady: endpoint + 'appReady'
+      })), request.success, request.failure);
+    }
+
+    ['loadedmetadata', 'loadeddata', 'canplay', 'playing', 'waiting', 'stalled', 'ended', 'error'].forEach(function (name) {
+      video.addEventListener(name, function () {
+        telemetry({ type: name, channelId: current, error: video.error ? video.error.code : null });
+        if (name === 'canplay' && active) requestPlay(generation, 0);
+        snapshot();
+      });
+    });
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden && active) requestPlay(generation, 0);
+    });
+
+    window.addEventListener('beforeunload', function () {
+      stop('unload', false);
+      closed = true;
+      bridges.forEach(function (bridge) { try { bridge.cancel(); } catch (_) {} });
+    });
+
+    telemetry({ type: 'bootstrap', hasPSB: typeof PalmServiceBridge === 'function', hasInjection: !!hasInjection(),
+      hasDmost: typeof Dmost === 'object', hasNativeMediaGate: typeof navigator.setBlockedMediaOnWebOSTV === 'function' });
+    if (!hasInjection() && typeof PalmServiceBridge !== 'function') return;
+
+    initializeBridge(function () {
+      luna('getChannel', { subscribe: true }, onChannel);
+      luna('appReady', {}, function (response) {
+        telemetry({ type: 'app_ready', returnValue: response.returnValue === true });
+      });
+      setInterval(snapshot, 2000);
+    });
+  }());
+  </script>
+</body>
+</html>

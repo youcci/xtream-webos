@@ -1,0 +1,5 @@
+#!/bin/sh
+P=/var/lib/xtream-native
+[ -f "$P/enabled" ] || exit 0
+"$P/control.sh" start >> "$P/boot.log" 2>&1 || true
+exit 0

@@ -1,0 +1,15 @@
+[Unit]
+Description=Xtream compatibility provider for the LG native Guide
+After=network.target
+
+[Service]
+Type=simple
+Environment=NODE_PATH=/usr/lib/nodejs:/usr/lib/node_modules
+WorkingDirectory=/var/lib/xtream-native
+ExecStart=/usr/bin/node /var/lib/xtream-native/provider.js
+Restart=always
+RestartSec=5
+UMask=0077
+StandardOutput=null
+StandardError=journal
+LimitCORE=0

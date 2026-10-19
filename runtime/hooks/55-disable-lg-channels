@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+P=/var/lib/xtream-native
+[ -f "$P/enabled" ] || exit 0
+node "$P/prepare.js" --check-schema
+grep -q ' /usr/sbin/pbs ' /proc/mounts || mount --bind "$P/pbs-disabled" /usr/sbin/pbs
+killall pbs 2>/dev/null || true
+# Installation explicitly replaces the stock IP-channel feed. RF tables stay intact.
+sqlite3 /mnt/lg/cmn_data/iepg/db/channel.sql "BEGIN IMMEDIATE; DELETE FROM ip WHERE chan_code IS NULL OR substr(chan_code,1,7)!='xtream_'; COMMIT;"
