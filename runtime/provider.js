@@ -36,6 +36,8 @@ var allowed=[
   'luna://com.webos.service.utp.channel/getChannelSortMode',
   'luna://com.webos.service.utp.channel/setChannelSortMode',
   'luna://com.webos.applicationManager/launch',
+  'luna://com.webos.applicationManager/getForegroundAppInfo',
+  'luna://com.webos.service.wampluggable.dmost/getChannel',
   'luna://com.webos.service.wampluggable.dmost/setDmostUrl'
 ];
 http.createServer(function(req,res){

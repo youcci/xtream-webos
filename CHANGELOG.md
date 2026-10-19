@@ -1,5 +1,12 @@
 # Change log
 
+## Unreleased — missing-player recovery (2026-10-19)
+
+- Diagnosed all-channel black video with healthy native channel/Guide data and working upstream HLS. The embedded player's heartbeat had stopped; reapplying its local Dmost URL restored playback, with picture/audio confirmed by the owner.
+- Added a guarded watchdog that checks for a missing heartbeat only, verifies foreground LiveTV and an owned/unlocked native channel, then reloads the page. It leaves account/category data intact, skips healthy/other-input playback and limits attempts to one per minute.
+- Added sanitized recovery status and seven offline regression tests. The earlier native lifecycle event that dropped the page was not captured.
+- Verified recovery on the physical TV by loading a temporary player with muted snapshot telemetry, restoring the normal source, and allowing the watchdog to act. It reloaded once after 18.6 seconds and restored active 1080p playback on the same channel. The temporary probe is not part of the runtime or published source.
+
 ## 0.1.0 — 2026-10-19
 
 First public source release, collecting the rooted-TV integration and reproducible setup notes.

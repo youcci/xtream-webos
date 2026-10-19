@@ -78,3 +78,11 @@ LG can restore its Guide from a CRIU checkpoint without rereading QML. When over
 Native tuning invokes the Dmost page with the selected native channel ID. `player.html` resolves the ID locally, opens a credential-free loopback stream URL and reports decoded dimensions/time/readiness. `proxy.js` requests provider HLS using the active account and rewrites playlist resources through local endpoints. Playback suspends when native ownership/input focus is lost, including HDMI switches, and resumes when LiveTV regains it.
 
 There is no transcoder or external relay. TV codec/transport limits and provider availability still determine whether a particular channel works. The compositor screenshot API omits the hardware video plane; use physical picture/audio confirmation in addition to telemetry.
+
+## Missing-player recovery
+
+A later failure left all channels black even though the provider, catalogue, Guide and native channel selection still worked. Player telemetry had stopped for hours. Reapplying the local Dmost URL restored the current channel, with picture/audio confirmed on the TV. The exact native lifecycle event that dropped the page was not captured.
+
+`playback-watchdog.js` checks every 10 seconds after a 30-second startup grace. If no player heartbeat has arrived for 15 seconds, it uses the resident LS2 bridge to check the foreground app and current native channel. It reloads the local player only for foreground LiveTV with a known imported channel and an unlocked/non-stopped native state. A fresh heartbeat during the checks cancels recovery. Attempts are limited to once per minute; healthy playback and other apps do not trigger reloads.
+
+The bridge additionally permits `getForegroundAppInfo` and Dmost `getChannel`. No tuner restart, channel import, account change or application launch is involved. Status exposes sanitized `playbackRecovery` counters and the last recovery time. This handles a missing player page; fresh telemetry reporting an upstream/decoder error remains a separate playback problem.

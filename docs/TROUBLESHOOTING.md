@@ -32,6 +32,16 @@ The first ZDF proof of concept bypassed parts of the full native tuning path. A 
 
 Try a small category selection and use **Channels → Watch**. Read `player.active`, `readyState`, decoded width/height, error and advancing `currentTime` in status. A provider HTTP error, expired account, connection limit, incompatible codec or unavailable stream needs a different remedy than a stale native map. The app tests account acceptance but cannot guarantee each upstream channel.
 
+If every channel goes black and `player.updatedAt` stops advancing while the services/native channel remain healthy, the embedded Dmost page may have stopped. The playback watchdog now detects a missing heartbeat and reloads it while native LiveTV owns an imported, unlocked channel, usually within about 15–25 seconds after the last heartbeat. Check `playbackRecovery` in status. It does not interrupt another foreground app, an external input or a locked/stopped channel, and does not retry more than once a minute. Give startup its initial grace period.
+
+For an older runtime without this recovery, the following root-shell command reapplies the local player URL without changing the channel selection:
+
+```sh
+luna-send -w 15000 -n 1 luna://com.webos.service.wampluggable.dmost/setDmostUrl '{"url":"http://127.0.0.1:17651/player.html?v=full-3"}' < /dev/zero
+```
+
+A live missing-player recovery test is documented in the change log. Recovery of a stopped page does not establish the native lifecycle event that stopped it; no such event trace was available for the original failure.
+
 ## Player reports playback, screenshot is black
 
 LG's compositor capture excludes hardware video. A black/missing video plane is expected in these screenshots. Confirm picture and sound on the TV itself; decoder dimensions/time provide supporting diagnostics, not proof of visible output. Native Guide may also show a “click to play” preview until selected.

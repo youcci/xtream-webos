@@ -12,6 +12,7 @@
 | `runtime/lib/proxy.js`, `client.js` | Provider calls and local HLS proxy |
 | `runtime/provider.js` | PBS capability replies and resident LS2 IPC bridge |
 | `runtime/player.html` | Dmost hardware video integration and telemetry |
+| `runtime/lib/playback-watchdog.js` | Guarded recovery of a missing native player heartbeat |
 | `runtime/prepare.js` | Firmware-anchor/schema checks and private QML generation |
 | `runtime/control.sh`, `hooks/` | Transient units, startup, bind mounts and checkpoint invalidation |
 | `tools/xtream_webos.py` | Root-SSH diagnostic, deployment, private IPK builder, screenshot and restore |
@@ -27,6 +28,7 @@ Requires a host Node.js and SQLite executable at `/usr/bin/sqlite3` (the tested 
 ```sh
 node tests/epg.test.js
 node tests/native.test.js
+node tests/watchdog.test.js
 python3 -m unittest discover -s tests -p 'test_*.py'
 python3 tools/check_public.py
 git diff --check
@@ -35,6 +37,8 @@ git diff --check
 The EPG suite covers time offsets/DST, chunked Unicode and CDATA, invalid/entity-expanding XML, limits/backpressure, multi-channel mapping, atomic failure/cancel behavior, short-EPG fallback and gzip/large imports. Native tests use a **synthetic** schema, exercise 21,001-row imports, stable numbering, category filtering, SQL quoting, retained editor fields, empty removal and QML anchor/cache guards. Python tests inspect the Debian ar/tar package structure, private-runtime boundaries and install gates. CI runs these without contacting a provider or TV.
 
 Tests do not replace physical tuning, sound, native Guide lifecycle, HDMI transition, root persistence or fresh-install/uninstall validation. Do not run category-mutating tests on a user's live selection. The hardware video layer needs physical confirmation.
+
+Playback recovery tests cover native ownership/foreground gates, locked/foreign channels, healthy heartbeats, startup grace, cooldown, in-flight heartbeat recovery, sanitized errors and overlapping checks. Do not induce a blank player on a live TV without accounting for the viewer; a real recovery test briefly interrupts video.
 
 ## Packaging
 

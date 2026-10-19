@@ -1,6 +1,7 @@
 'use strict';
 var fs=require('fs'),path=require('path'),http=require('http'),URL=require('url').URL,u=require('./lib/util'),client=require('./lib/client'),Manager=require('./lib/manager');
 var manager=new Manager(__dirname),proxy=require('./lib/proxy')(manager);
+var playbackWatchdog=new (require('./lib/playback-watchdog'))(manager);
 fs.writeFileSync(path.join(__dirname,'server.pid'),String(process.pid),{mode:384});
 function json(res,status,body){res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(body));}
 function body(req){return new Promise(function(resolve,reject){var parts=[],size=0;req.on('data',function(b){size+=b.length;if(size>16384){req.destroy();reject(u.fail('Request is too large.'));}else parts.push(b);});req.on('end',function(){try{resolve(JSON.parse(Buffer.concat(parts).toString('utf8') || '{}'));}catch(e){reject(u.fail('Invalid request.'));}});req.on('error',reject);});}
@@ -22,7 +23,7 @@ http.createServer(function(req,res){
   if(req.method==='GET'&&p==='/channel'){
     var c=manager.byNative[parsed.searchParams.get('id')];return json(res,c?200:404,c?{channelId:c.nativeId,name:c.name,stream:'/streams/'+c.id+'.m3u8'}:{error:'Unknown channel'});
   }
-  if(req.method==='GET'&&p==='/status')return json(res,200,{ok:true,channels:manager.catalog.channels.length,player:manager.player,sync:manager.sync,guide:manager.guide});
+  if(req.method==='GET'&&p==='/status')return json(res,200,{ok:true,channels:manager.catalog.channels.length,player:manager.player,sync:manager.sync,guide:manager.guide,playbackRecovery:playbackWatchdog.state});
   if(req.method==='POST'&&p==='/telemetry')return body(req).then(function(v){
     var c=manager.byNative[v.channelId];if(v.type==='snapshot')manager.player={channelId:v.channelId || null,streamId:c?c.id:null,name:c?c.name:null,currentTime:Number(v.currentTime)||0,readyState:v.readyState,paused:!!v.paused,width:v.width,height:v.height,error:v.error,active:!!v.active,updatedAt:Date.now()};
     if(c&&v.active&&v.readyState>=2&&manager.history.lastChannelId!==c.nativeId){manager.history.lastChannelId=c.nativeId;manager.persistHistory();}
@@ -38,7 +39,7 @@ http.createServer(function(req,res){
   if(token!==manager.settings.token || (origin&&origin!=='http://127.0.0.1:17651'))return json(res,403,{error:'Open Xtream TV on the television.'});
   Promise.resolve().then(function(){
     if(req.method==='GET'){
-      if(p==='/api/status')return manager.status();
+      if(p==='/api/status')return Object.assign(manager.status(),{playbackRecovery:playbackWatchdog.state});
       if(p==='/api/settings')return manager.publicSettings();
       if(p==='/api/categories')return {categories:manager.catalog.categories};
       if(p==='/api/category-selection')return manager.selection();
@@ -66,5 +67,5 @@ http.createServer(function(req,res){
       throw u.fail('Unknown action.');
     });
   }).then(function(v){json(res,(p==='/api/sync'||p==='/api/refresh-guide'||p==='/api/category-selection')?202:200,v);}).catch(function(e){json(res,400,{ok:false,error:u.safe(e)});});
-}).listen(17651,'127.0.0.1',function(){manager.start();});
+}).listen(17651,'127.0.0.1',function(){manager.start();playbackWatchdog.start();});
 process.on('uncaughtException',function(e){console.error('Unexpected service error:',e && e.code || 'internal');process.exit(1);});
