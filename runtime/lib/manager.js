@@ -8,7 +8,12 @@ function Manager(base) {
   if(this.activeAccount)this.settings.activeAccount=this.activeAccount;
   u.write(this.file,this.settings);
   this.catalog=u.read(path.join(base,'catalog.private.json'),{channels:[],categories:[]});
-  this.library=u.read(path.join(base,'library.private.json'),this.catalog);
+  // Unselected provider metadata is needed by the category UI/refresh, not
+  // playback. Avoid parsing the full library on the boot critical path.
+  var self=this,library,loaded=false;
+  Object.defineProperty(this,'library',{enumerable:true,configurable:true,get:function(){
+    if(!loaded){library=u.read(path.join(base,'library.private.json'),self.catalog);loaded=true;}return library;
+  },set:function(value){library=value;loaded=true;}});
   this.history=u.read(path.join(base,'history.json'),{});
   this.sync={running:false,phase:'idle',progress:0,lastSuccess:this.history.lastSync || null,error:null};
   this.guide={running:false,lastSuccess:this.history.lastGuide || null,error:null,programmes:this.history.programmes || 0};
@@ -142,11 +147,11 @@ Manager.prototype.start=function(){
   var self=this;
   // The native channel database is persistent; the Guide is a volatile SQLite
   // database, restored from our persistent snapshot by control.sh.
-  var ready=Promise.resolve();
+  var ready=u.waitForNative();
   var pending=u.read(path.join(self.base,'catalog-transaction.private.json'),null);
   if(pending){
-    ready=self.commit(pending);
-  }else if(self.catalog.channels.length)ready=nativeDb.apply(self.catalog,self.channelDb).then(function(){return u.refreshMap();});
+    ready=ready.then(function(){return self.commit(pending);});
+  }else if(self.catalog.channels.length)ready=ready.then(function(){return nativeDb.apply(self.catalog,self.channelDb);}).then(function(){return u.refreshMap();});
   ready.then(function(){self.nativeReady=true;}).catch(function(e){self.sync.error=u.safe(e);}).then(function(){
     if(self.settings.account){
       if(!self.history.lastSync||Date.now()-Date.parse(self.history.lastSync)>self.settings.syncHours*3600000)self.startSync();

@@ -36,23 +36,23 @@ start)
         printf '%s\n' "$ui_version" > "$P/native-ui-version"
     fi
     systemctl daemon-reload
-    systemctl start xtream-native-provider.service
+    systemctl start xtream-native-provider.service xtream-native.service
     attempt=0
     while [ "$attempt" -lt 10 ]; do
         if curl --max-time 1 -fs --unix-socket "$P/native.sock" -H 'Content-Type: application/json' -d '{"uri":"ping"}' http://localhost/ >/dev/null 2>&1; then break; fi
         attempt=$((attempt+1)); sleep 1
     done
     curl --max-time 2 -fs --unix-socket "$P/native.sock" -H 'Content-Type: application/json' -d '{"uri":"ping"}' http://localhost/ >/dev/null || { echo 'Native provider did not start.' >&2; exit 1; }
-    systemctl start xtream-native.service
     attempt=0
     while [ "$attempt" -lt 15 ]; do
         if curl --max-time 1 -fs http://127.0.0.1:17651/status >/dev/null 2>&1; then break; fi
         attempt=$((attempt+1)); sleep 1
     done
     curl --max-time 2 -fs http://127.0.0.1:17651/status >/dev/null || { echo 'Management service did not start.' >&2; exit 1; }
-    call luna://com.webos.service.wampluggable.dmost/setDmostUrl '{"url":"http://127.0.0.1:17651/player.html?v=full-3"}' >/dev/null
+    node "$P/lib/boot-player.js"
     ;;
 stop)
+    systemctl stop xtream-native-boot.service 2>/dev/null || true
     call luna://com.webos.service.wampluggable.dmost/setDmostUrl '{"url":"file:///usr/palm/applications/com.webos.app.livedmost/index.html"}' >/dev/null || true
     systemctl stop xtream-native.service xtream-native-provider.service || true
     ;;

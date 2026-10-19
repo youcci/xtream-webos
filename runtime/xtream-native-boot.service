@@ -1,0 +1,15 @@
+[Unit]
+Description=Early Xtream native TV boot preparation
+After=network.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/var/lib/xtream-native
+ExecStartPre=/bin/sh /var/lib/webosbrew/init.d/55-disable-lg-channels
+ExecStart=/var/lib/xtream-native/control.sh start
+TimeoutStartSec=90
+UMask=0077
+StandardOutput=null
+StandardError=journal
+LimitCORE=0

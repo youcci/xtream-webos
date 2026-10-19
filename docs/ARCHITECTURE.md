@@ -21,6 +21,12 @@ flowchart LR
 
 `server.js` serves management APIs, UI, Dmost HTML and stream proxy on **127.0.0.1:17651**. `provider.js` owns the resident LS2 connection and a private Unix socket. Both run as root in `/var/lib/xtream-native` under transient systemd units copied to `/run/systemd/system` at startup.
 
+The `40-native-xtream` Homebrew hook queues `xtream-native-boot.service` without blocking later root hooks. That Linux oneshot job first runs the installed feed-disabling hook, then `control.sh start`: restoring Guide data, mounting overlays and starting the provider/manager. It can progress while `50-debloat` waits for the preload manager. `60-native-xtream` requests the same unit; systemd coalesces an in-flight start, and `RemainAfterExit=yes` avoids repeating completed setup. If the early unit is absent or cannot be queued, the late hook retains the older direct-start fallback. An accepted job that later fails compatibility checks is not bypassed. Homebrew's own root persistence files are not modified.
+
+Provider and manager are started together. The manager waits for the private bridge's ping before touching the native map, so parallel startup cannot fail just because its Unix socket has not appeared yet. It loads only the selected catalogue on the critical path; the full provider library is read lazily when the category UI or metadata refresh needs it. This retains unselected categories without delaying first playback to parse them.
+
+`lib/boot-player.js` waits up to 30 seconds for the hidden Dmost app to appear in the running-app inventory before setting its URL. Earlier setup must not send WAM methods to an absent app and wait on their timeout. It does not launch an app or select a channel; normal foreground/selection guards and missing-player recovery remain in the server. The control/resume processes are Linux services; the Dmost page still supplies LG's native video-player integration. Moving a proxy to another computer does not remove the TV's media/display initialization requirements.
+
 | Path under `/var/lib/xtream-native` | Purpose |
 | --- | --- |
 | `settings.private.json` | Account, active account, refresh intervals, category IDs, management token |

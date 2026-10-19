@@ -35,6 +35,9 @@ class PackagingTests(unittest.TestCase):
             self.assertIn('prepare.js', names)
             self.assertIn('app/app.js', names)
             self.assertIn('hooks/55-disable-lg-channels', names)
+            self.assertIn('hooks/40-native-xtream', names)
+            self.assertIn('xtream-native-boot.service', names)
+            self.assertIn('lib/boot-player.js', names)
             self.assertFalse(any('.private.' in n or n.startswith(('originals/', 'patches/', 'backups/')) for n in names))
 
     def test_token_and_host_validation(self):

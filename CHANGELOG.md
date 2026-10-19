@@ -1,5 +1,14 @@
 # Change log
 
+## Unreleased — early Linux boot preparation (2026-10-19)
+
+- Queue an on-TV Linux systemd oneshot from the earlier `40-native-xtream` hook. Restore Guide/overlays and start the integration in parallel with unrelated preload work. The late hook reuses the same job and retains its legacy fallback; root persistence scripts stay intact.
+- Wait for actual hidden-player registration before sending its WAM URL method. Start provider and manager concurrently, with an explicit private-bridge readiness gate before native map updates.
+- Defer parsing the full unselected provider library until category management or metadata refresh needs it. Preserve the selected catalogue and existing category/refresh behavior.
+- Add boot/player readiness and hook execution tests; extend packaging, fresh-install and removal paths for the early job. These changes do not replace the native player or require an external Linux computer.
+- Physical reboot validation: the earlier sequential-provider variant decoded at about 63 seconds. With parallel service startup and lazy library loading, the resume worker was constructed at 45.65 seconds uptime, native/page readiness was observed at 49.88, the channel was selected at 53.48 and decoded 720p video was observed at 55.88. Host polling saw the first decoded frame about 54.8 seconds after the reboot request, without manual tuning. These are measurements for the recorded TV/account, not a guarantee for every boot or provider.
+- Playback remained healthy past four minutes of uptime with no watchdog recovery. A video-layer capture confirmed the picture; category selection, account settings and selected catalogue were preserved, and restored Guide rows and all three QML mounts were verified. Fresh installation/removal on another TV remains untested.
+
 ## Unreleased — faster startup resume (2026-10-19)
 
 - Replace the fixed ten-second service grace with actual native database/map and page readiness. Poll every second, then require two seconds of stable fallback selection before tuning. A missing page still gets a bounded ten-second grace before the existing recovery fallback. Retain foreground, channel ownership, native lock handling and once-per-boot guards.

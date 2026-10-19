@@ -15,7 +15,7 @@ Includes **Xtream TV / Channel Room**, a remote-friendly TV app for entering an 
 - Import XMLTV programme schedules for selected channels, with short-EPG fallback for the current channel.
 - Refresh channels every 6 hours and the full Guide every 60 minutes by default. Current-channel updates run between full refreshes. Intervals are configurable.
 - Retain channel-number assignments, category selection and LG favourites/locks/groups across refreshes of the same account.
-- Restore the Guide snapshot and start services after a real reboot through Homebrew Channel startup hooks. No always-on computer or external streaming server is needed.
+- Restore the Guide snapshot and start services after a real reboot through an early Linux systemd boot job, in parallel with unrelated preload hooks. No always-on computer or external streaming server is needed.
 - Resume the last successfully watched, still-imported Xtream channel once after reboot when LiveTV starts on LG's empty terrestrial fallback. Another foreground app or an actual channel selection cancels resume.
 - Recover a missing page or hidden player app automatically for an unlocked imported LiveTV channel, including recreating the app and restoring the TV's selected channel after startup. Checks exclude other foreground apps, RF, HDMI and locked channels.
 - Replace LG's stock IP channel feed while retaining the native TV components needed for playback and Guide navigation.

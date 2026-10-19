@@ -20,7 +20,7 @@ For an installation made by this repository's installer, from the computer:
 python3 tools/xtream_webos.py --host TV_IP --key ~/.ssh/webos_tv uninstall --restore-lg-channels
 ```
 
-The tool requires and integrity-checks `backups/channels-before.sqlite` before making changes. It disables the runtime, removes its two startup hooks, stops services, removes owned Xtream IP rows/categories and restores the saved non-Xtream IP rows **without replacing the whole database or RF tables**. It removes owned programme rows, unmounts the three Guide overlays and PBS mask, invalidates the Guide-only snapshot, and asks the original PBS service for its policy to reactivate it.
+The tool requires and integrity-checks `backups/channels-before.sqlite` before making changes. It disables the runtime, removes its three startup hooks, stops boot preparation and runtime services, removes owned Xtream IP rows/categories and restores the saved non-Xtream IP rows **without replacing the whole database or RF tables**. It removes owned programme rows, unmounts the three Guide overlays and PBS mask, invalidates the Guide-only snapshot, and asks the original PBS service for its policy to reactivate it.
 
 Remove **Xtream TV** through Home's app editor. Perform a real reboot and verify normal LiveTV/Guide behavior; original LG programme data may need to download again. The saved Guide backup is retained for diagnosis, rather than automatically replacing the running whole Guide database. Private runtime/backups remain under `/var/lib/xtream-native` until you explicitly archive/remove them. Root and optional debloat are retained.
 
@@ -34,9 +34,10 @@ On the TV root shell:
 
 ```sh
 rm -f /var/lib/xtream-native/enabled
+rm -f /var/lib/webosbrew/init.d/40-native-xtream
 rm -f /var/lib/webosbrew/init.d/55-disable-lg-channels
 rm -f /var/lib/webosbrew/init.d/60-native-xtream
-systemctl stop xtream-native.service xtream-native-provider.service
+systemctl stop xtream-native-boot.service xtream-native.service xtream-native-provider.service
 ```
 
 These commands stop further bootstrap changes. Bind mounts are temporary and disappear on a real reboot. They do not restore deleted stock IP rows; retain the database backup and use the uninstaller/targeted restore. Do not remove unrelated Homebrew hooks or core systemd services.

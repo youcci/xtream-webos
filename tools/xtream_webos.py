@@ -158,7 +158,7 @@ def runtime_tar():
             relative = file.relative_to(RUNTIME)
             if any(part in ("originals", "patches", "backups") for part in relative.parts) or ".private." in file.name:
                 raise RuntimeError("Refusing to package private/generated runtime files.")
-            if file.suffix not in (".js", ".json", ".html", ".css", ".svg", ".png", ".sql", ".service", ".sh") and file.name not in ("pbs-disabled", "55-disable-lg-channels", "60-native-xtream"):
+            if file.suffix not in (".js", ".json", ".html", ".css", ".svg", ".png", ".sql", ".service", ".sh") and file.name not in ("pbs-disabled", "40-native-xtream", "55-disable-lg-channels", "60-native-xtream"):
                 raise RuntimeError("Unexpected runtime file: " + str(relative))
             archive.add(file, arcname=str(relative), recursive=False)
     return data.getvalue()
@@ -252,7 +252,7 @@ def install(tv, args):
         except RuntimeError:
             state[key] = {"unavailable": True}
     tv.run("cat > " + backup + "/original-provider-state.json", data=json.dumps(state).encode())
-    tv.run("set -e; mv {stage} {remote}; chmod 700 {remote}/control.sh {remote}/hooks/* {remote}/pbs-disabled; touch {remote}/enabled; cp {remote}/hooks/55-disable-lg-channels /var/lib/webosbrew/init.d/55-disable-lg-channels; cp {remote}/hooks/60-native-xtream /var/lib/webosbrew/init.d/60-native-xtream; {remote}/control.sh start".format(stage=STAGE, remote=REMOTE), timeout=60)
+    tv.run("set -e; mv {stage} {remote}; chmod 700 {remote}/control.sh {remote}/hooks/* {remote}/pbs-disabled; touch {remote}/enabled; cp {remote}/hooks/40-native-xtream /var/lib/webosbrew/init.d/40-native-xtream; cp {remote}/hooks/55-disable-lg-channels /var/lib/webosbrew/init.d/55-disable-lg-channels; cp {remote}/hooks/60-native-xtream /var/lib/webosbrew/init.d/60-native-xtream; {remote}/control.sh start".format(stage=STAGE, remote=REMOTE), timeout=90)
     package = write_private_package(tv)
     tv.run("umask 077; cat > /tmp/xtream-webos-launcher.ipk", data=package.read_bytes())
     tv.transaction("luna://com.webos.appInstallService/dev/install",
@@ -271,7 +271,7 @@ def uninstall(tv, restore):
         raise RuntimeError("The installer backup is missing. See docs/RECOVERY.md for manual-install recovery.")
     if tv.text("sqlite3 " + REMOTE + "/backups/channels-before.sqlite 'PRAGMA quick_check;'").strip() != "ok":
         raise RuntimeError("The channel backup failed its integrity check; no changes were made.")
-    tv.run("set -e; rm -f {p}/enabled; {p}/control.sh stop; rm -f /var/lib/webosbrew/init.d/55-disable-lg-channels /var/lib/webosbrew/init.d/60-native-xtream".format(p=REMOTE))
+    tv.run("set -e; rm -f {p}/enabled; {p}/control.sh stop; rm -f /var/lib/webosbrew/init.d/40-native-xtream /var/lib/webosbrew/init.d/55-disable-lg-channels /var/lib/webosbrew/init.d/60-native-xtream".format(p=REMOTE))
     cols = ",".join(json.loads((RUNTIME / "native-template.json").read_text()))
     sql = (".bail on\n.timeout 15000\nATTACH DATABASE '" + REMOTE + "/backups/channels-before.sqlite' AS saved;\n"
            "BEGIN IMMEDIATE; DELETE FROM ip WHERE substr(chan_code,1,7)='xtream_';\n"

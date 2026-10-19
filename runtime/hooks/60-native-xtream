@@ -1,5 +1,10 @@
 #!/bin/sh
 P=/var/lib/xtream-native
 [ -f "$P/enabled" ] || exit 0
+if [ -f /run/systemd/system/xtream-native-boot.service ]; then
+    # systemd coalesces an in-flight start; RemainAfterExit prevents a second
+    # preparation after the early job completes. A failed job can be retried.
+    if systemctl start --no-block xtream-native-boot.service; then exit 0; fi
+fi
 "$P/control.sh" start >> "$P/boot.log" 2>&1 || true
 exit 0

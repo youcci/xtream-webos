@@ -36,7 +36,7 @@ The tool:
 2. Stages the runtime under `/var/lib/xtream-native.install-tmp` with private permissions.
 3. Generates three QML overlays from the owner's firmware, preserving originals privately.
 4. Uses SQLite `.backup` to save the channel database and any existing Guide database, plus available original provider replies.
-5. Moves the runtime into `/var/lib/xtream-native`, installs startup hooks `55-disable-lg-channels` and `60-native-xtream`, and marks it enabled.
+5. Moves the runtime into `/var/lib/xtream-native`, installs startup hooks `40-native-xtream`, `55-disable-lg-channels` and `60-native-xtream`, and marks it enabled. The early hook queues a Linux systemd boot job while unrelated preload hooks continue; the late hook retries/reuses the same job.
 6. Masks the stock PBS feed, starts a local replacement provider and manager, restores/initializes Guide tables, mounts overlays, and sets the native Dmost player URL.
 7. Generates a private launcher IPK, installs it and checks the installer's final success state and app registry.
 
@@ -95,4 +95,4 @@ For maintenance over root SSH:
 /var/lib/xtream-native/control.sh start
 ```
 
-`stop` stops the two services and restores the stock Dmost player URL. It does not restore the LG IP feed, stock IP rows or QML bindings; use the [uninstaller](RECOVERY.md) for that. `restart` only restarts the two services; after changing overlays use `start` to run its compatibility/checkpoint handling.
+`stop` stops any boot-preparation job plus the two runtime services and restores the stock Dmost player URL. It does not restore the LG IP feed, stock IP rows or QML bindings; use the [uninstaller](RECOVERY.md) for that. `restart` only restarts the two runtime services; after changing overlays use `start` to run its compatibility/checkpoint handling.

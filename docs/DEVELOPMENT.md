@@ -14,6 +14,7 @@
 | `runtime/player.html` | Dmost hardware video integration and telemetry |
 | `runtime/lib/playback-watchdog.js` | Guarded recovery of a missing native player heartbeat |
 | `runtime/lib/startup-resume.js` | Once-per-boot last-channel selection from LG's empty fallback |
+| `runtime/lib/boot-player.js`, `xtream-native-boot.service` | Early Linux boot setup and bounded hidden-player readiness |
 | `runtime/prepare.js` | Firmware-anchor/schema checks and private QML generation |
 | `runtime/control.sh`, `hooks/` | Transient units, startup, bind mounts and checkpoint invalidation |
 | `tools/xtream_webos.py` | Root-SSH diagnostic, deployment, private IPK builder, screenshot and restore |
@@ -31,6 +32,7 @@ node tests/epg.test.js
 node tests/native.test.js
 node tests/watchdog.test.js
 node tests/resume.test.js
+node tests/boot.test.js
 python3 -m unittest discover -s tests -p 'test_*.py'
 python3 tools/check_public.py
 git diff --check
@@ -43,6 +45,10 @@ Tests do not replace physical tuning, sound, native Guide lifecycle, HDMI transi
 Playback recovery tests cover native ownership/foreground gates, RF/locked/foreign channels, healthy heartbeats, startup/transition grace, cooldown, in-flight heartbeat recovery, sanitized errors, overlapping checks, missing-app startup, selection changes, bounded launch readiness and page acknowledgement before native replay. Distinguish a missing page from a missing app when reproducing a failure. Do not induce a blank player on a live TV without accounting for the viewer; a real recovery test briefly interrupts video.
 
 Startup-resume tests cover exclusive boot-runtime marker persistence/reset, service restarts, the boot deadline, native readiness, the two-second stability check without a fixed startup sleep, empty-fallback recognition, other apps/channels, changing history/catalogue, native-failure backoff, uncertain launch acknowledgements and decoded playback confirmation. A physical reboot test must avoid manual tuning so that it actually exercises automatic selection. Compare boot-relative `startupResume.timings` with the service's systemd monotonic start timestamp when measuring improvements.
+
+Early-boot tests exercise bounded player inventory/URL readiness, transient failures, deadlines and absence of unsolicited app/channel launches. Python tests execute both boot hooks with temporary paths and a systemctl stub to verify the common nonblocking job, disabled-state behavior and legacy fallback. Physical validation must also monitor playback past any earlier observed WAM-exit window; an early first frame alone does not establish sustained startup success.
+
+Parallel-start tests verify bridge readiness retry/deadline behavior; native tests verify that boot retains the selected catalogue while deferring and caching the complete provider library. Test a pending transaction as a recovery operation rather than assuming lazy loading may discard its full metadata.
 
 ## Packaging
 

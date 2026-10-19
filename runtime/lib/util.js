@@ -55,4 +55,17 @@ function refreshMap() {
     return set(1-original).then(function(){return new Promise(function(resolve){setTimeout(resolve,750);});}).then(function(){return set(original);});
   });
 }
-exports.read=read;exports.write=write;exports.fail=fail;exports.safe=safe;exports.text=text;exports.sql=sql;exports.sqlite=sqlite;exports.luna=luna;exports.refreshMap=refreshMap;
+function waitForNative(options){
+  options=options||{};
+  var probe=options.probe||function(){return luna('ping',{});},now=options.now||Date.now;
+  var sleep=options.sleep||function(ms){return new Promise(function(resolve){setTimeout(resolve,ms);});};
+  var deadline=now()+10000;
+  function check(){
+    if(now()>=deadline)return Promise.reject(fail('The native TV bridge did not become ready during startup.'));
+    return Promise.resolve().then(probe).then(function(reply){if(!reply||reply.returnValue!==true)throw new Error('bridge_not_ready');return true;}).catch(function(){
+      return sleep(250).then(check);
+    });
+  }
+  return check();
+}
+exports.read=read;exports.write=write;exports.fail=fail;exports.safe=safe;exports.text=text;exports.sql=sql;exports.sqlite=sqlite;exports.luna=luna;exports.refreshMap=refreshMap;exports.waitForNative=waitForNative;

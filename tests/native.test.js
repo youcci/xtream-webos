@@ -30,6 +30,18 @@ test('category filtering imports only selected rows, including an empty selectio
   assert.strictEqual(filter(library,['2']).channels.length,1);
   assert.strictEqual(filter(library,[]).channels.length,0);
 });
+test('boot loads only the selected catalogue and defers the full library until needed',function(){
+  var Manager=require('../runtime/lib/manager'),base=path.join(tmp,'lazy-manager');fs.mkdirSync(base);
+  var selected={channels:[{id:'kept',nativeId:'owned'}],categories:[]};
+  fs.writeFileSync(path.join(base,'catalog.private.json'),JSON.stringify(selected));
+  fs.writeFileSync(path.join(base,'library.private.json'),JSON.stringify({channels:[],categories:[{id:'old'}]}));
+  var manager=new Manager(base),full={channels:[{id:'kept'},{id:'unselected'}],categories:[{id:'all'}]};
+  fs.writeFileSync(path.join(base,'library.private.json'),JSON.stringify(full));
+  assert.strictEqual(manager.catalog.channels.length,1);assert.strictEqual(manager.selection().categories[0].id,'all');
+  fs.writeFileSync(path.join(base,'library.private.json'),'invalid later content');
+  assert.strictEqual(manager.library.channels.length,2);
+  var updated={channels:[],categories:[]};manager.library=updated;assert.strictEqual(manager.library,updated);
+});
 query('CREATE TABLE ip('+Object.keys(template).map(function(k){return k+(typeof template[k]==='number'?' NUMERIC':' TEXT');}).join(',')+'); CREATE TABLE pbs_genre_base(genre_code TEXT,genre_type TEXT,version TEXT,genre_name TEXT,use_flag TEXT,reserved_1 TEXT,genreFavoritePoint NUMERIC,PRIMARY KEY(genre_code,genre_type));');
 test('native imports quote names and preserve favourites, locks, groups and unrelated rows',function(){
   query(db.script(library));
