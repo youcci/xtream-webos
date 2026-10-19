@@ -28,6 +28,7 @@ flowchart LR
 | `catalog.private.json` | Only selected/imported channels and categories |
 | `catalog-transaction.private.json` | Recoverable pending channel commit |
 | `history.json` | Last refreshes/current channel and schedule count |
+| `/run/xtream-native/startup-resume.claim` | Private boot-local marker; prevents replay on a service restart and disappears on reboot |
 | `guide-cache.sqlite` | Persistent backup of the otherwise volatile Guide DB |
 | `originals/`, `patches/` | Private firmware originals and generated overlays |
 | `firmware-profile.json` | Native compatibility profile / Guide executable hash |
@@ -92,3 +93,11 @@ Recovery now reads selection independently through UTP `broadcast/bind` and `bro
 An existing but uninitialized player (`unlocked` plus `_`) can also reload/replay. Explicit native stop/block states, RF/foreign/locked channels and other foreground apps are excluded. Foreground and selection are rechecked before mutations and replay; it never substitutes a history/default channel.
 
 The resident bridge additionally permits running-app inventory and these two UTP reads. No core TV service restart or channel/account import is involved. Status exposes `starts`, `reloads`, `replays`, `reason`, `lastStage` and sanitized errors. Fresh telemetry reporting an active upstream/decoder failure remains a separate playback problem. These repairs cover observed missing-page/missing-app states rather than guaranteeing that all firmware playback failures are eliminated.
+
+## Last-channel startup resume
+
+`startup-resume.js` is separate from missing-player recovery. It snapshots the persisted last successfully played channel and exclusively creates a private marker under `/run/xtream-native` (0700 directory, 0600 marker). `/run` is boot-local tmpfs on the tested TV; it survives process restarts and clears on reboot. Its kernel `boot_id` was observed to repeat after a real reboot, so that ID is not used. A subsequent management-service restart in that boot cannot select the channel again. A service first started more than five minutes after boot skips resume; this is not a suspend/wake hook.
+
+After a ten-second service grace and successful native database/map initialization, it checks every five seconds within that boot window. LiveTV must be foreground, and two observations at least five seconds apart must show LG's exact empty, skipped, unlocked terrestrial fallback (`1_0_1_0_0_0_0`). A configured RF channel, imported/foreign channel, another app, changed history or removed target cancels resume. Sync/account writes defer the check. Resume does not launch from Home or HDMI.
+
+It selects the saved channel through LiveTV's ordinary `channelChange` launch, retaining native lock handling. At most one selection is sent, including when its acknowledgement is lost. The existing watchdog can then recreate a missing player for the newly selected unlocked channel. `startupResume` status distinguishes `waiting`, `awaiting-playback`, `resumed`, `skipped` and `failed`; a launch acknowledgement alone is not success. Resume requires fresh active telemetry with decoded video dimensions. No account/category data is changed.

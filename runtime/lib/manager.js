@@ -12,7 +12,7 @@ function Manager(base) {
   this.history=u.read(path.join(base,'history.json'),{});
   this.sync={running:false,phase:'idle',progress:0,lastSuccess:this.history.lastSync || null,error:null};
   this.guide={running:false,lastSuccess:this.history.lastGuide || null,error:null,programmes:this.history.programmes || 0};
-  this.player={};this.reindex();this.channelDb=process.env.XTREAM_CHANNEL_DB || '/mnt/lg/cmn_data/iepg/db/channel.sql';
+  this.player={};this.nativeReady=false;this.reindex();this.channelDb=process.env.XTREAM_CHANNEL_DB || '/mnt/lg/cmn_data/iepg/db/channel.sql';
   this.guideDb=process.env.XTREAM_GUIDE_DB || '/tmp/epg/PBS_EPG_DB.db';
   this.lastBulk=this.history.lastGuide?Date.parse(this.history.lastGuide):0;this.lastCurrent=Date.now();
 }
@@ -147,7 +147,7 @@ Manager.prototype.start=function(){
   if(pending){
     ready=self.commit(pending);
   }else if(self.catalog.channels.length)ready=nativeDb.apply(self.catalog,self.channelDb).then(function(){return u.refreshMap();});
-  ready.catch(function(e){self.sync.error=u.safe(e);}).then(function(){
+  ready.then(function(){self.nativeReady=true;}).catch(function(e){self.sync.error=u.safe(e);}).then(function(){
     if(self.settings.account){
       if(!self.history.lastSync||Date.now()-Date.parse(self.history.lastSync)>self.settings.syncHours*3600000)self.startSync();
       else if(self.catalog.channels.length&&process.env.XTREAM_SKIP_INITIAL_GUIDE!=='1'&&(!fs.existsSync(self.guideDb)||Date.now()-self.lastBulk>self.settings.epgMinutes*60000))self.startGuide(true);

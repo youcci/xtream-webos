@@ -13,6 +13,7 @@
 | `runtime/provider.js` | PBS capability replies and resident LS2 IPC bridge |
 | `runtime/player.html` | Dmost hardware video integration and telemetry |
 | `runtime/lib/playback-watchdog.js` | Guarded recovery of a missing native player heartbeat |
+| `runtime/lib/startup-resume.js` | Once-per-boot last-channel selection from LG's empty fallback |
 | `runtime/prepare.js` | Firmware-anchor/schema checks and private QML generation |
 | `runtime/control.sh`, `hooks/` | Transient units, startup, bind mounts and checkpoint invalidation |
 | `tools/xtream_webos.py` | Root-SSH diagnostic, deployment, private IPK builder, screenshot and restore |
@@ -29,6 +30,7 @@ Requires a host Node.js and SQLite executable at `/usr/bin/sqlite3` (the tested 
 node tests/epg.test.js
 node tests/native.test.js
 node tests/watchdog.test.js
+node tests/resume.test.js
 python3 -m unittest discover -s tests -p 'test_*.py'
 python3 tools/check_public.py
 git diff --check
@@ -39,6 +41,8 @@ The EPG suite covers time offsets/DST, chunked Unicode and CDATA, invalid/entity
 Tests do not replace physical tuning, sound, native Guide lifecycle, HDMI transition, root persistence or fresh-install/uninstall validation. Do not run category-mutating tests on a user's live selection. The hardware video layer needs physical confirmation.
 
 Playback recovery tests cover native ownership/foreground gates, RF/locked/foreign channels, healthy heartbeats, startup/transition grace, cooldown, in-flight heartbeat recovery, sanitized errors, overlapping checks, missing-app startup, selection changes, bounded launch readiness and page acknowledgement before native replay. Distinguish a missing page from a missing app when reproducing a failure. Do not induce a blank player on a live TV without accounting for the viewer; a real recovery test briefly interrupts video.
+
+Startup-resume tests cover exclusive boot-runtime marker persistence/reset, service restarts, the boot deadline, native readiness, empty-fallback recognition, other apps/channels, changing history/catalogue, bounded native failures, uncertain launch acknowledgements and decoded playback confirmation. A physical reboot test must avoid manual tuning so that it actually exercises automatic selection.
 
 ## Packaging
 

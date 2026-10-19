@@ -1,5 +1,13 @@
 # Change log
 
+## Unreleased — last-channel startup resume (2026-10-19)
+
+- Resume the last successfully watched, still-imported Xtream channel once per real boot when LiveTV starts on LG's empty terrestrial fallback. Wait for native initialization and two stable fallback observations; cancel for another app or selected channel. Normal native selection retains parental-lock handling.
+- Exclusively create a private marker on boot-local `/run` tmpfs so a management-service restart cannot change the selected channel again. The tested TV repeats its kernel boot ID, so that ID is not used. Bound resume to the first five minutes of uptime and send at most one selection even if its acknowledgement is lost.
+- Expose sanitized `startupResume` status and require fresh decoded video telemetry before reporting success. Keep missing-player recovery independent of history-based startup selection.
+- Add fourteen offline regression cases for startup, persistence, eligibility, user input and failure handling.
+- Physical validation: the last watched channel resumed automatically after a real reboot, without any manual tune command, with active decoded 720p video at about 90 seconds of uptime. After correcting the repeated-kernel-ID issue, a second real reboot verified that the `/run` marker reset and automatic resume worked again. A same-boot management-service restart skipped resume and retained playback.
+
 ## Unreleased — cold-start player recovery (2026-10-19)
 
 - Observed a recurring black screen after a real reboot: the hidden native player app was absent, no player telemetry had arrived, and its WAM methods timed out. The first recovery worker could not progress because it queried that absent player before starting it.

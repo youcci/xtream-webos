@@ -62,7 +62,7 @@ See the [webOS Homebrew screenshot commands](https://www.webosbrew.org/pages/com
 
 Allow roughly 60 seconds after a real boot. Confirm Homebrew Channel root/startup scripts, the `/var/lib/xtream-native/enabled` marker and both hooks. Check free space and boot logs. A firmware-profile/hash failure deliberately stops mounting incompatible files; review compatibility before regenerating anything. Remote power-off may suspend instead of rebooting.
 
-On the tested TV, a verified full reboot returned LiveTV to its default terrestrial channel. Selecting an imported Xtream channel then played normally. The recovery worker intentionally leaves a terrestrial selection alone; it does not automatically choose a channel from history.
+On the tested TV, a full reboot returned LiveTV to its empty default terrestrial channel. The startup-resume worker now selects the last successfully watched imported Xtream channel from that specific fallback. Check `startupResume` in `/status`: it must reach `resumed` after actual video telemetry, rather than merely acknowledging a launch. It runs once per boot within five minutes, waits for native initialization, and cancels for another app or a real channel selection. Removed-category channels and missing history are skipped. A management-service restart does not trigger another selection; suspend/wake does not count as a reboot. The missing-player watchdog remains independent and does not choose history as its recovery target.
 
 ## Native requests fail or Node aborts
 
