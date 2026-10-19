@@ -34,6 +34,14 @@ test('native map readiness and pending writes delay inspection',async function()
   f.manager.nativeReady=true;f.manager.sync.running=true;await f.resume.tick();assert.strictEqual(f.calls.length,0);
   f.manager.sync.running=false;assert.strictEqual(await select(f),true);
 });
+test('an individually verified startup row permits resume before full maintenance',async function(){
+  var f=fixture();f.manager.nativeReady=false;f.manager.startupTargetReady='different';await f.resume.tick();assert.strictEqual(f.calls.length,0);
+  f.manager.startupTargetReady='owned';assert.strictEqual(await select(f),true);assert.strictEqual(launches(f).length,1);
+});
+test('early verified selection can start the ordinary native IP path while its page initializes',async function(){
+  var f=fixture();f.manager.nativeReady=false;f.manager.startupTargetReady='owned';f.manager.playerReadyAt=0;
+  assert.strictEqual(await select(f),true);assert.strictEqual(launches(f).length,1);assert.strictEqual(f.resume.state.timings.playerReady,null);
+});
 test('ready native services resume after two stable seconds without the old startup sleep',async function(){
   var f=fixture();await f.resume.tick();f.advance(1000);await f.resume.tick();assert.strictEqual(launches(f).length,0);
   f.advance(1000);assert.strictEqual(await f.resume.tick(),true);assert.strictEqual(launches(f).length,1);

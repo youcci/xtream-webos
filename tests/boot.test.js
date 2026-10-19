@@ -40,6 +40,53 @@ test('a slow inventory response cannot initiate a new mutation after the deadlin
   f.call=function(uri,payload){f.time=30000;return call(uri,payload);};
   assert.strictEqual(await configure(f.options),false);assert(!f.calls.includes('setDmostUrl'));
 });
+function earlyFixture(){
+  var f=fixture(),call=f.call;f.options.earlyLaunch=true;
+  f.options.claimEarlyPlayer=function(){return true;};
+  f.foreground='com.webos.app.livetv';f.channel={channelId:'1_0_1_0_0_0_0',channelName:'',channelModeName:'Terrestrial',isSkipped:true,isLocked:false};
+  f.call=function(uri,payload){
+    var method=uri.split('/').pop();
+    if(['getForegroundAppInfo','bind','getCurrentChannel','launch'].indexOf(method)>=0){
+      f.calls.push(method);
+      if(method==='getForegroundAppInfo')return Promise.resolve({returnValue:true,appId:f.foreground});
+      if(method==='bind')return Promise.resolve({returnValue:true,binded:true,broadcastId:'native'});
+      if(method==='getCurrentChannel')return Promise.resolve({returnValue:true,channel:f.channel});
+      f.running=true;return Promise.resolve({returnValue:true});
+    }
+    return call(uri,payload);
+  };return f;
+}
+test('opt-in early bootstrap starts a hidden player only after two native fallback observations',async function(){
+  var f=earlyFixture();assert.strictEqual(await configure(f.options),true);
+  assert.deepStrictEqual(f.calls.slice(0,8),['running','getForegroundAppInfo','bind','getCurrentChannel','getForegroundAppInfo','bind','getCurrentChannel','launch']);
+  assert.strictEqual(f.calls.filter(function(m){return m==='launch';}).length,1);assert.strictEqual(f.calls[f.calls.length-1],'setDmostUrl');
+});
+test('another foreground app cannot trigger an early hidden-player launch',async function(){
+  var f=earlyFixture();f.foreground='other';assert.strictEqual(await configure(f.options),false);assert(!f.calls.includes('launch'));
+});
+test('an existing early launch claim prevents a duplicate JS launch',async function(){
+  var f=earlyFixture();f.options.claimEarlyPlayer=function(){return false;};assert.strictEqual(await configure(f.options),false);assert(!f.calls.includes('launch'));
+});
+test('configured RF, locked and unknown channel selections cannot trigger early launch',async function(){
+  for(var change of [{isSkipped:false},{isLocked:true},{channelName:'Configured'},{channelId:'foreign'}]){
+    var f=earlyFixture();Object.assign(f.channel,change);assert.strictEqual(await configure(f.options),false);assert(!f.calls.includes('launch'));
+  }
+});
+test('a foreground change during prelaunch inspection cancels the mutation',async function(){
+  var f=earlyFixture(),call=f.call;
+  f.call=function(uri,payload){var result=call(uri,payload);if(/getCurrentChannel$/.test(uri))f.foreground='other';return result;};
+  assert.strictEqual(await configure(f.options),false);assert(!f.calls.includes('launch'));
+});
+test('an uncertain early launch acknowledgement is never sent twice',async function(){
+  var f=earlyFixture(),call=f.call;
+  f.call=function(uri,payload){var result=call(uri,payload);return /\/launch$/.test(uri)?Promise.reject(new Error('lost acknowledgement')):result;};
+  assert.strictEqual(await configure(f.options),true);assert.strictEqual(f.calls.filter(function(m){return m==='launch';}).length,1);
+});
+test('slow prelaunch inspection cannot initiate a launch after the deadline',async function(){
+  var f=earlyFixture(),call=f.call;
+  f.call=function(uri,payload){var result=call(uri,payload);if(/getCurrentChannel$/.test(uri))f.time=30000;return result;};
+  assert.strictEqual(await configure(f.options),false);assert(!f.calls.includes('launch'));
+});
 test('parallel manager startup waits for bridge readiness instead of failing on a missing socket',async function(){
   var time=0,probes=0;
   assert.strictEqual(await waitForNative({now:function(){return time;},sleep:function(ms){time+=ms;return Promise.resolve();},probe:function(){probes++;return time<750?Promise.reject(new Error('socket missing')):Promise.resolve({returnValue:true});}}),true);

@@ -15,6 +15,7 @@
 | `runtime/lib/playback-watchdog.js` | Guarded recovery of a missing native player heartbeat |
 | `runtime/lib/startup-resume.js` | Once-per-boot last-channel selection from LG's empty fallback |
 | `runtime/lib/boot-player.js`, `xtream-native-boot.service` | Early Linux boot setup and bounded hidden-player readiness |
+| `runtime/lib/early-health.js`, `experimental/early-entry/` | Opt-in pre-Homebrew loader, one-use boot leases and health-based persistence |
 | `runtime/prepare.js` | Firmware-anchor/schema checks and private QML generation |
 | `runtime/control.sh`, `hooks/` | Transient units, startup, bind mounts and checkpoint invalidation |
 | `tools/xtream_webos.py` | Root-SSH diagnostic, deployment, private IPK builder, screenshot and restore |
@@ -30,9 +31,12 @@ Requires a host Node.js and SQLite executable at `/usr/bin/sqlite3` (the tested 
 ```sh
 node tests/epg.test.js
 node tests/native.test.js
+node tests/proxy.test.js
 node tests/watchdog.test.js
 node tests/resume.test.js
 node tests/boot.test.js
+node tests/startup-native.test.js
+node tests/early-health.test.js
 python3 -m unittest discover -s tests -p 'test_*.py'
 python3 tools/check_public.py
 git diff --check
@@ -49,6 +53,8 @@ Startup-resume tests cover exclusive boot-runtime marker persistence/reset, serv
 Early-boot tests exercise bounded player inventory/URL readiness, transient failures, deadlines and absence of unsolicited app/channel launches. Python tests execute both boot hooks with temporary paths and a systemctl stub to verify the common nonblocking job, disabled-state behavior and legacy fallback. Physical validation must also monitor playback past any earlier observed WAM-exit window; an early first frame alone does not establish sustained startup success.
 
 Parallel-start tests verify bridge readiness retry/deadline behavior; native tests verify that boot retains the selected catalogue while deferring and caching the complete provider library. Test a pending transaction as a recovery operation rather than assuming lazy loading may discard its full metadata.
+
+Early-readiness tests reject mismatched, hidden, skipped, locked and incomplete single-row descriptors and protect deferred maintenance from competing writes. Health tests cover progressing/frozen/stale video, settled boot timing, failsafe, recovery and legitimate skipped selections. Host C tests execute the actual loader constructor with fixture paths/UID and an OS-flag adapter, without dispatching systemd or requiring root. They cover lease consumption, same-boot restart preservation, disabled/failsafe behavior and safe environment removal. ARM ABI and real TTS behavior still require device validation. Proxy tests exercise real local HTTP redirects, relative HLS/key URLs, opaque handles and absence of credential URLs.
 
 ## Packaging
 

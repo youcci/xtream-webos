@@ -2,6 +2,8 @@
 
 Keep root SSH available. Do not delete `/var/lib/xtream-native` before restoring its backups and bindings. The fresh installer retains private pre-install snapshots; old manual/PoC setups may have different backups and must follow [migration](MIGRATION.md).
 
+If you manually enabled the [early-entry experiment](EARLY_BOOT.md), run `/bin/sh /var/lib/xtream-native/early-entry/disable.sh` first. It clears leases and removes only its exact environment file while retaining the library and normal Homebrew startup. Resolve any additional environment settings manually. Remove the preload reference before deleting its library or the runtime; the default uninstaller does not install/manage this optional system-service extension.
+
 ## Stop playback/services temporarily
 
 On the TV root shell:

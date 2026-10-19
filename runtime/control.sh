@@ -16,20 +16,24 @@ start)
         fi
     fi
     sqlite3 /tmp/epg/PBS_EPG_DB.db < "$P/guide-schema.sql"
+    units_changed=0
     for name in xtream-native xtream-native-provider; do
-        cp "$P/$name.service" "/run/systemd/system/$name.service"
+        if ! cmp -s "$P/$name.service" "/run/systemd/system/$name.service"; then
+            cp "$P/$name.service" "/run/systemd/system/$name.service"
+            units_changed=1
+        fi
     done
     # Bind the reviewable QML overlays; the firmware files stay intact.
     for relative in main.qml Pages/Page1/Components/SettingPopupFeed.qml Controllers/ChannelInterfaces/Interfaces.qml; do
         target="/usr/palm/applications/com.webos.app.livemenu/qml/$relative"
         grep -q " $target " /proc/mounts || mount --bind "$P/patches/$relative" "$target"
     done
-    systemctl daemon-reload
+    if [ "$units_changed" = 1 ]; then systemctl daemon-reload; fi
     systemctl start xtream-native-provider.service xtream-native.service
     # LG restores a precompiled Guide process from CRIU. Invalidate only that
     # app's checkpoint when our QML or its firmware executable changes, so the
     # next Guide launch reads the mounted files and generates a fresh snapshot.
-    ui_version=$(node -e 'var fs=require("fs"),hash=require("crypto").createHash("sha256");process.argv.slice(1).forEach(function(file){hash.update(fs.readFileSync(file));});process.stdout.write(hash.digest("hex"));' "$P/patches/main.qml" "$P/patches/Pages/Page1/Components/SettingPopupFeed.qml" "$P/patches/Controllers/ChannelInterfaces/Interfaces.qml" /usr/bin/com.webos.app.livemenu)
+    ui_version=$(nice -n 10 node -e 'var fs=require("fs"),hash=require("crypto").createHash("sha256");process.argv.slice(1).forEach(function(file){hash.update(fs.readFileSync(file));});process.stdout.write(hash.digest("hex"));' "$P/patches/main.qml" "$P/patches/Pages/Page1/Components/SettingPopupFeed.qml" "$P/patches/Controllers/ChannelInterfaces/Interfaces.qml" /usr/bin/com.webos.app.livemenu)
     if [ "$ui_version" != "$(cat "$P/native-ui-version" 2>/dev/null || true)" ]; then
         rm -f /tmp/checkpoint/com.webos.app.livemenu/pgid /mnt/lg/cmn_data/checkpoint/com.webos.app.livemenu/pgid /tmp/checkpoint/hash_check_com.webos.app.livemenu
         for guide_pid in $(pidof com.webos.app.livemenu || true); do
@@ -49,7 +53,7 @@ start)
         attempt=$((attempt+1)); sleep 1
     done
     curl --max-time 2 -fs http://127.0.0.1:17651/status >/dev/null || { echo 'Management service did not start.' >&2; exit 1; }
-    node "$P/lib/boot-player.js"
+    if [ ! -f /run/xtream-native/inline-player.claim ]; then node "$P/lib/boot-player.js"; fi
     ;;
 stop)
     systemctl stop xtream-native-boot.service 2>/dev/null || true

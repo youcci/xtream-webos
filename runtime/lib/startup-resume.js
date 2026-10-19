@@ -22,7 +22,8 @@ function Resume(manager,options){
   options=options||{};this.manager=manager;this.call=options.call||u.luna;this.now=options.now||Date.now;
   this.boot=options.boot||boot;this.startedAt=this.now();this.nextAttemptAt=0;this.busy=false;this.done=false;this.selected=false;this.observedAt=null;
   this.targetId=manager.history.lastChannelId;
-  this.state={status:'waiting',reason:null,attempts:0,lastStage:'boot',lastError:null,resumedAt:null,timings:{serviceStarted:null,nativeReady:null,playerReady:null,fallbackObserved:null,channelSelected:null,videoDecoded:null}};
+  this.state={status:'waiting',reason:null,attempts:0,lastStage:'boot',lastError:null,failures:[],resumedAt:null,timings:{serviceStarted:null,nativeReady:null,playerReady:null,fallbackObserved:null,channelSelected:null,videoDecoded:null}};
+  var cpu=process.cpuUsage();this.state.processCpuAtStartMs=Math.round((cpu.user+cpu.system)/1000);
   try{
     var info=this.boot();
     if(!Number.isFinite(info.uptime)||info.uptime<0)throw new Error('uptime_unavailable');
@@ -34,6 +35,7 @@ function Resume(manager,options){
 }
 Resume.prototype.finish=function(status,reason){this.done=true;this.state.status=status;this.state.reason=reason;if(this.timer)clearInterval(this.timer);};
 Resume.prototype.target=function(){return this.targetId&&this.manager.history.lastChannelId===this.targetId&&this.manager.byNative[this.targetId];};
+Resume.prototype.nativeAvailable=function(){return this.manager.nativeReady||this.manager.startupTargetReady===this.targetId;};
 Resume.prototype.request=function(stage,uri,payload){
   var self=this;self.state.lastStage=stage;
   return Promise.resolve().then(function(){return self.call(uri,payload);}).then(function(reply){
@@ -68,12 +70,12 @@ Resume.prototype.tick=function(){
     return Promise.resolve(false);
   }
   if(!self.target()){self.finish('skipped','history-or-selection-changed');return Promise.resolve(false);}
-  if(!self.manager.nativeReady||self.manager.sync.running||self.manager.saving)return Promise.resolve(false);
+  if(!self.nativeAvailable()||self.manager.sync.running||self.manager.saving)return Promise.resolve(false);
   if(self.state.timings.nativeReady===null)self.state.timings.nativeReady=uptime;
-  // Usually the page acknowledges readiness first. Do not race its startup,
-  // but retain a bounded fallback so an absent app can be selected/recovered.
+  // Ordinary starts retain a page grace. A verified early IP row may enter
+  // LG's native channel launch while its player initializes in parallel.
   if(self.manager.playerReadyAt){if(self.state.timings.playerReady===null)self.state.timings.playerReady=uptime;}
-  else if(self.now()-self.startedAt<10000){self.state.lastStage='waiting-player-page';return Promise.resolve(false);}
+  else if(self.manager.startupTargetReady!==self.targetId&&self.now()-self.startedAt<10000){self.state.lastStage='waiting-player-page';return Promise.resolve(false);}
   self.busy=true;self.state.attempts++;
   return self.inspect().then(function(channel){
     if(!channel)return false;
@@ -82,16 +84,19 @@ Resume.prototype.tick=function(){
     if(self.now()-self.observedAt<2000)return false;
     // Recheck after asynchronous native reads. Use the ordinary TV selection
     // path so LG retains its lock/parental-control handling for the target.
-    if(!self.target()||!self.manager.nativeReady||self.manager.sync.running||self.manager.saving)return false;
+    if(!self.target()||!self.nativeAvailable()||self.manager.sync.running||self.manager.saving)return false;
     var selectedUptime=self.boot().uptime;
     if(selectedUptime>=300){self.finish('skipped','boot-window-ended');return false;}
     self.selected=true;self.state.status='awaiting-playback';self.state.timings.channelSelected=selectedUptime;
     // A timed-out launch may still have taken effect. Never send it twice.
     return self.request('selecting-channel',APP+'launch',{id:'com.webos.app.livetv',params:{id:'channelChange',channelId:self.targetId}}).then(function(){self.state.lastError=null;return true;});
   }).catch(function(){
+    var failedUptime=null;try{failedUptime=self.boot().uptime;}catch(e){}
+    if(self.state.failures.length<12)self.state.failures.push({stage:self.state.lastStage,uptime:failedUptime});
     self.observedAt=null;self.nextAttemptAt=self.now()+5000;self.state.lastError='Startup resume unavailable at '+self.state.lastStage;return false;
   }).then(function(result){self.busy=false;return result;});
 };
 Resume.prototype.start=function(){var self=this;if(!self.done&&!self.timer){self.timer=setInterval(function(){self.tick();},1000);self.timer.unref();}};
 Resume.claim=claim;
+Resume.placeholder=placeholder;
 module.exports=Resume;

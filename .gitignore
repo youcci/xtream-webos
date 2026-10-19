@@ -26,3 +26,7 @@ runtime/*.pid
 runtime/*.sock
 runtime/enabled
 *.log
+*.o
+*.so
+*.so.*
+*.dylib

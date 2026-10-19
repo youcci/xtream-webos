@@ -12,11 +12,13 @@ for name in filter(None, files):
     path = root / name
     if not path.is_file():
         continue
-    if path.suffix.lower() in ('.ipk', '.sqlite', '.db', '.pem', '.key') or '.private.' in name:
+    if path.suffix.lower() in ('.ipk', '.sqlite', '.db', '.pem', '.key', '.o', '.so', '.dylib') or '.so.' in path.name or '.private.' in name:
         errors.append(name + ': private/generated artifact')
     if name.startswith(('runtime/originals/', 'runtime/patches/', 'backups/')):
         errors.append(name + ': firmware/backup artifact')
     data = path.read_bytes()
+    if data.startswith(b'\x7fELF'):
+        errors.append(name + ': native binary; publish source only')
     if b'\x00' in data:
         continue
     text = data.decode('utf-8', 'replace')

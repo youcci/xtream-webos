@@ -1,5 +1,14 @@
 # Change log
 
+## Unreleased — persistent entry before Homebrew (2026-10-19)
+
+- Add original ARM32 soft-float loader source, reproducible owner-libc build, manual deployment and guarded removal for an optional TTS environment-file entry. It ran as root around 16 seconds without modifying read-only firmware or Homebrew's persistence code. The default installer does not enable it.
+- Use an atomic one-use lease, boot-local dispatch claim and health-based renewal after at least 90 seconds. Failed startup leaves the next boot to Homebrew. Preserve SSH and Developer Mode removal.
+- Validate the exact saved native IEPG row before early resume and defer bulk native/channel/Guide work until playback or bounded fallback. Reuse the server for guarded player preparation; retain user-selection, foreground, native lock and once-per-boot guards. Avoid unused startup crypto/TLS initialization without changing management-token entropy or exposing upstream URLs.
+- Restore temporary Xtream process priorities without global systemd reload. Unneeded late reloads had re-triggered LG's LSM path, cleanly restarting the entire web-app engine; unchanged unit files now skip reloads.
+- Consecutive final real reboots observed decoded 720p video at **39.23 and 39.15 seconds**, with no manual tuning. The repeat consumed an automatically renewed lease. Account/category/catalogue hashes remained unchanged. Sub-30-second video remains unachieved; the measurements do not establish a fixed hardware minimum or a cross-firmware guarantee.
+- Reject the standalone native warmer and native-selection-only trials: neither improved the retained configuration. Remove the warmer's automatic job and its three additional LS2 metadata files. Keep owner-specific logs, frame captures and copied TV libraries private.
+
 ## Unreleased — boot timing follow-up (2026-10-19)
 
 - Start provider/manager after compatibility checks, Guide restoration and overlay mounts, allowing their initialization to overlap the independent Guide checkpoint hash check.

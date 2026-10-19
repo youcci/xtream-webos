@@ -14,8 +14,8 @@ jobs:
         with:
           python-version: '3.11'
       - run: sudo apt-get update && sudo apt-get install -y sqlite3
-      - run: node tests/epg.test.js && node tests/native.test.js && node tests/watchdog.test.js && node tests/resume.test.js && node tests/boot.test.js
+      - run: node tests/epg.test.js && node tests/native.test.js && node tests/proxy.test.js && node tests/watchdog.test.js && node tests/resume.test.js && node tests/boot.test.js && node tests/startup-native.test.js && node tests/early-health.test.js
       - run: python3 -m unittest discover -s tests -p 'test_*.py'
       - run: find runtime tests -name '*.js' -exec node --check {} \;
-      - run: sh -n runtime/control.sh && sh -n runtime/hooks/40-native-xtream && sh -n runtime/hooks/55-disable-lg-channels && sh -n runtime/hooks/60-native-xtream && sh -n debloat/webos-debloat-webos6.sh
+      - run: sh -n runtime/control.sh && sh -n runtime/start-node.sh && sh -n runtime/hooks/40-native-xtream && sh -n runtime/hooks/55-disable-lg-channels && sh -n runtime/hooks/60-native-xtream && sh -n debloat/webos-debloat-webos6.sh && sh -n experimental/early-entry/dispatch.sh && sh -n experimental/early-entry/priority-restore.sh && sh -n experimental/early-entry/disable.sh
       - run: python3 tools/check_public.py

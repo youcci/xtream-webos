@@ -6,7 +6,7 @@ After=network.target
 Type=simple
 Environment=NODE_PATH=/usr/lib/nodejs:/usr/lib/node_modules
 WorkingDirectory=/var/lib/xtream-native
-ExecStart=/usr/bin/node /var/lib/xtream-native/provider.js
+ExecStart=/bin/sh /var/lib/xtream-native/start-node.sh /var/lib/xtream-native/provider.js
 Restart=always
 RestartSec=5
 UMask=0077

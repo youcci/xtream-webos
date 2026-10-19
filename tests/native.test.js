@@ -42,6 +42,28 @@ test('boot loads only the selected catalogue and defers the full library until n
   assert.strictEqual(manager.library.channels.length,2);
   var updated={channels:[],categories:[]};manager.library=updated;assert.strictEqual(manager.library,updated);
 });
+test('an existing management token does not request unused startup randomness',function(){
+  var Manager=require('../runtime/lib/manager'),crypto=require('crypto'),random=crypto.randomBytes,base=path.join(tmp,'saved-token');fs.mkdirSync(base);
+  fs.writeFileSync(path.join(base,'settings.private.json'),JSON.stringify({token:'synthetic-existing-token'}));
+  crypto.randomBytes=function(){throw new Error('Unexpected entropy request');};
+  try{assert.strictEqual(new Manager(base).settings.token,'synthetic-existing-token');}finally{crypto.randomBytes=random;}
+});
+test('existing-account playback construction does not load unused TLS or crypto modules',function(){
+  var base=path.join(tmp,'http-only-boot');fs.mkdirSync(base);fs.writeFileSync(path.join(base,'settings.private.json'),JSON.stringify({token:'synthetic-existing-token'}));
+  var code="var Module=require('module'),load=Module._load;Module._load=function(name){if(name==='https'||name==='crypto')throw new Error('Unused boot module '+name);return load.apply(this,arguments);};var Manager=require('./runtime/lib/manager');require('./runtime/lib/proxy')(new Manager(process.argv[1]));";
+  cp.execFileSync(process.execPath,['-e',code,base],{cwd:path.join(__dirname,'..')});
+});
+test('initial metadata refresh waits for decoded video or a bounded fallback and runs once',function(){
+  var Manager=require('../runtime/lib/manager'),oldSet=global.setTimeout,oldClear=global.clearTimeout,timer,cleared=0,syncs=0;
+  global.setTimeout=function(callback,ms){assert.strictEqual(ms,30000);timer=callback;return {unref:function(){}};};global.clearTimeout=function(){cleared++;};
+  function fixture(){var m=Object.create(Manager.prototype);Object.assign(m,{settings:{account:{},syncHours:6},history:{},sync:{running:false},guide:{running:false},catalog:{channels:[]},player:{},startSync:function(){syncs++;}});return m;}
+  try{
+    var m=fixture();m.queueInitialRefresh();assert.strictEqual(syncs,0);m.beginInitialRefresh();timer();assert.strictEqual(syncs,1);
+    m=fixture();m.queueInitialRefresh();timer();assert.strictEqual(syncs,2);
+    m=fixture();m.player={active:true,readyState:2,width:1280,height:720};m.queueInitialRefresh();assert.strictEqual(syncs,3);
+    m=fixture();m.sync.running=true;m.queueInitialRefresh();timer();assert.strictEqual(syncs,3);assert(cleared>=4);
+  }finally{global.setTimeout=oldSet;global.clearTimeout=oldClear;}
+});
 query('CREATE TABLE ip('+Object.keys(template).map(function(k){return k+(typeof template[k]==='number'?' NUMERIC':' TEXT');}).join(',')+'); CREATE TABLE pbs_genre_base(genre_code TEXT,genre_type TEXT,version TEXT,genre_name TEXT,use_flag TEXT,reserved_1 TEXT,genreFavoritePoint NUMERIC,PRIMARY KEY(genre_code,genre_type));');
 test('native imports quote names and preserve favourites, locks, groups and unrelated rows',function(){
   query(db.script(library));

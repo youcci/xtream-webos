@@ -5,7 +5,7 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=/var/lib/xtream-native
-ExecStart=/usr/bin/node /var/lib/xtream-native/server.js
+ExecStart=/bin/sh /var/lib/xtream-native/start-node.sh /var/lib/xtream-native/server.js
 Restart=always
 RestartSec=5
 UMask=0077

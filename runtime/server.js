@@ -3,6 +3,13 @@ var fs=require('fs'),path=require('path'),http=require('http'),URL=require('url'
 var manager=new Manager(__dirname),proxy=require('./lib/proxy')(manager);
 var playbackWatchdog=new (require('./lib/playback-watchdog'))(manager);
 var startupResume=new (require('./lib/startup-resume'))(manager);
+var earlyHealth=new (require('./lib/early-health'))(manager,startupResume,playbackWatchdog);
+var inlinePlayer=path.join('/run/xtream-native','inline-player.claim');
+function claimInlinePlayer(){
+  if(!fs.existsSync('/run/xtream-native/early-start'))return false;
+  var fd;try{fd=fs.openSync(inlinePlayer,'wx',384);}catch(e){return false;}
+  fs.closeSync(fd);return true;
+}
 fs.writeFileSync(path.join(__dirname,'server.pid'),String(process.pid),{mode:384});
 function json(res,status,body){res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(body));}
 function body(req){return new Promise(function(resolve,reject){var parts=[],size=0;req.on('data',function(b){size+=b.length;if(size>16384){req.destroy();reject(u.fail('Request is too large.'));}else parts.push(b);});req.on('end',function(){try{resolve(JSON.parse(Buffer.concat(parts).toString('utf8') || '{}'));}catch(e){reject(u.fail('Invalid request.'));}});req.on('error',reject);});}
@@ -29,6 +36,7 @@ http.createServer(function(req,res){
     if(v.type==='bootstrap')manager.playerReadyAt=0;
     if(v.type==='app_ready'&&v.returnValue===true)manager.playerReadyAt=Date.now();
     var c=manager.byNative[v.channelId];if(v.type==='snapshot')manager.player={channelId:v.channelId || null,streamId:c?c.id:null,name:c?c.name:null,currentTime:Number(v.currentTime)||0,readyState:v.readyState,paused:!!v.paused,width:v.width,height:v.height,error:v.error,active:!!v.active,updatedAt:Date.now()};
+    if(v.type==='snapshot'&&c&&v.active&&v.readyState>=2&&v.width>0&&v.height>0){if(manager.releaseNativeStartup)manager.releaseNativeStartup();manager.beginInitialRefresh();}
     if(c&&v.active&&v.readyState>=2&&manager.history.lastChannelId!==c.nativeId){manager.history.lastChannelId=c.nativeId;manager.persistHistory();}
     json(res,200,{ok:true});
   }).catch(function(){json(res,400,{error:'Invalid telemetry'});});
@@ -70,5 +78,8 @@ http.createServer(function(req,res){
       throw u.fail('Unknown action.');
     });
   }).then(function(v){json(res,(p==='/api/sync'||p==='/api/refresh-guide'||p==='/api/category-selection')?202:200,v);}).catch(function(e){json(res,400,{ok:false,error:u.safe(e)});});
-}).listen(17651,'127.0.0.1',function(){manager.start();playbackWatchdog.start();startupResume.start();});
+}).listen(17651,'127.0.0.1',function(){
+  manager.start();playbackWatchdog.start();startupResume.start();earlyHealth.start();
+  if(claimInlinePlayer())require('./lib/boot-player')({earlyLaunch:true}).catch(function(){console.error('Early player initialization unavailable; guarded recovery remains available.');});
+});
 process.on('uncaughtException',function(e){console.error('Unexpected service error:',e && e.code || 'internal');process.exit(1);});

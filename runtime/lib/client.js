@@ -1,5 +1,5 @@
 'use strict';
-var http=require('http'),https=require('https'),url=require('url'),URL=url.URL,u=require('./util');
+var http=require('http'),url=require('url'),URL=url.URL,u=require('./util');
 function account(candidate,previous) {
   candidate=candidate || {};previous=previous || {};
   var base=String(candidate.url || '').trim().replace(/\/+$/,'');
@@ -22,7 +22,7 @@ function api(a,action,extra) {
   Object.keys(extra || {}).forEach(function(k){target.searchParams.set(k,extra[k]);});
   return new Promise(function(resolve,reject){
     var options=Object.assign(url.parse(target.href),{headers:{'User-Agent':'XtreamNative/1.0','Accept':'application/json'}});
-    var req=(target.protocol==='https:'?https:http).get(options,function(res){
+    var req=(target.protocol==='https:'?require('https'):http).get(options,function(res){
       if(res.statusCode!==200){res.resume();return reject(u.fail('Provider returned HTTP '+res.statusCode+'.'));}
       var bytes=0,parts=[];
       res.on('data',function(b){bytes+=b.length;if(bytes>48*1024*1024){req.destroy();reject(u.fail('Provider response exceeds the safe size limit.'));}else parts.push(b);});

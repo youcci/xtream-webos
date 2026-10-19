@@ -1,9 +1,9 @@
 'use strict';
-var fs=require('fs'),path=require('path'),crypto=require('crypto'),EventEmitter=require('events'),u=require('./util'),client=require('./client'),catalogue=require('./catalog'),nativeDb=require('./native-db');
+var fs=require('fs'),path=require('path'),EventEmitter=require('events'),u=require('./util'),client=require('./client'),catalogue=require('./catalog'),nativeDb=require('./native-db');
 function Manager(base) {
   this.base=base;this.file=path.join(base,'settings.private.json');
-  this.settings=u.read(this.file,{syncHours:6,epgMinutes:60,selectedCategoryIds:[],token:crypto.randomBytes(32).toString('hex')});
-  if(!this.settings.token)this.settings.token=crypto.randomBytes(32).toString('hex');
+  this.settings=u.read(this.file,{syncHours:6,epgMinutes:60,selectedCategoryIds:[]});
+  if(!this.settings.token)this.settings.token=require('crypto').randomBytes(32).toString('hex');
   this.activeAccount=this.settings.activeAccount || this.settings.account;
   if(this.activeAccount)this.settings.activeAccount=this.activeAccount;
   u.write(this.file,this.settings);
@@ -56,7 +56,7 @@ Manager.prototype.commit=function(pending){
   });
 };
 Manager.prototype.select=function(ids){
-  var self=this;if(self.saving||self.sync.running)throw u.fail('Wait for the current channel update to finish.');
+  var self=this;if(self.startupMaintenancePending||self.saving||self.sync.running)throw u.fail('Wait for the current channel update to finish.');
   if(!Array.isArray(ids)||ids.length>998)throw u.fail('Choose valid categories.');
   var known=Object.create(null);self.library.categories.forEach(function(c){known[c.id]=true;});
   ids=ids.map(String).filter(function(v,i,a){return a.indexOf(v)===i;});
@@ -87,7 +87,7 @@ Manager.prototype.status=function(){return {configured:!!this.settings.account,c
 Manager.prototype.publicSettings=function(){var a=this.settings.account || {};return {account:{url:a.url || '',username:a.username || '',passwordSet:!!a.password},syncHours:this.settings.syncHours,epgMinutes:this.settings.epgMinutes};};
 Manager.prototype.candidate=function(body){return client.account(body.account,this.settings.account);};
 Manager.prototype.save=function(body){
-  var self=this;if(self.saving||self.sync.running||self.guide.running)return Promise.reject(u.fail('Wait for the current refresh to finish before changing the account.'));
+  var self=this;if(self.startupMaintenancePending||self.saving||self.sync.running||self.guide.running)return Promise.reject(u.fail('Wait for the current refresh to finish before changing the account.'));
   var a=self.candidate(body),hours=Number(body.syncHours),minutes=Number(body.epgMinutes);
   if(!Number.isInteger(hours)||hours<1||hours>168)throw u.fail('Channel refresh must be between 1 and 168 hours.');
   if(!Number.isInteger(minutes)||minutes<5||minutes>1440)throw u.fail('Guide refresh must be between 5 and 1440 minutes.');
@@ -101,6 +101,7 @@ Manager.prototype.save=function(body){
 };
 Manager.prototype.startSync=function(){
   var self=this;if(self.sync.running) return {ok:true,job:'sync',alreadyRunning:true};
+  if(self.startupMaintenancePending)throw u.fail('Wait for startup channel checks to finish.');
   if(self.saving)throw u.fail('Wait for the account check to finish.');
   if(self.guide.running)throw u.fail('Wait for the Guide refresh to finish.');
   if(!self.settings.account)throw u.fail('Save an Xtream account first.');
@@ -124,6 +125,7 @@ Manager.prototype.startSync=function(){
 };
 Manager.prototype.startGuide=function(force){
   var self=this;if(self.guide.running)return {ok:true,job:'guide',alreadyRunning:true};
+  if(self.startupMaintenancePending)throw u.fail('Wait for startup channel checks to finish.');
   if(self.saving)throw u.fail('Wait for the account check to finish.');
   if(!self.settings.account||!self.catalog.channels.length)throw u.fail('Import the channel list first.');
   if(self.sync.running)throw u.fail('Wait for the channel refresh to finish.');
@@ -143,6 +145,42 @@ Manager.prototype.startGuide=function(force){
   }).catch(function(e){if(e.code!=='EPG_CANCELLED'){self.guide.error=u.safe(e);self.guide.errorCode=e.code || null;}}).then(function(){self.lastCurrent=Date.now();self.guide.running=false;self.guideSignal=null;});
   return {ok:true,job:'guide'};
 };
+Manager.prototype.beginInitialRefresh=function(){
+  if(!this.initialRefreshPending)return;
+  this.initialRefreshPending=false;
+  if(this.initialRefreshTimer)clearTimeout(this.initialRefreshTimer);
+  if(!this.settings.account||this.saving||this.sync.running||this.guide.running)return;
+  if(!this.history.lastSync||Date.now()-Date.parse(this.history.lastSync)>this.settings.syncHours*3600000)this.startSync();
+  else if(this.catalog.channels.length&&process.env.XTREAM_SKIP_INITIAL_GUIDE!=='1'&&(!fs.existsSync(this.guideDb)||Date.now()-this.lastBulk>this.settings.epgMinutes*60000))this.startGuide(true);
+};
+Manager.prototype.queueInitialRefresh=function(){
+  var self=this;self.initialRefreshPending=true;
+  self.initialRefreshTimer=setTimeout(function(){self.beginInitialRefresh();},30000);
+  self.initialRefreshTimer.unref();
+  if(self.player.active&&self.player.readyState>=2&&self.player.width>0&&self.player.height>0)self.beginInitialRefresh();
+};
+Manager.prototype.checkStartupTarget=function(){
+  var self=this,id=self.history.lastChannelId,c=self.byNative[id];
+  if(!fs.existsSync('/run/xtream-native/early-start')||!c||typeof c.code!=='string'||!/^xtream_\d+$/.test(c.code)||!self.activeAccount)return Promise.resolve(false);
+  return u.luna('luna://com.webos.service.iepg/getChannelInfo',{dataType:0,channelId:id}).then(function(reply){
+    var rows=reply&&reply.channelList,row=Array.isArray(rows)&&rows.length===1?rows[0]:null;
+    // Read one persistent, owned IP row before deferring the full maintenance
+    // pass. IEPG uses different lock-field names from getCurrentChannel.
+    if(!reply||reply.returnValue!==true||reply.channelListCount!==1||!row||row.channelId!==id||row.chanCode!==c.code||row.IPChannelCode!==c.code||row.channelMode!=='IP'||row.playerService!=='com.webos.service.dmost'||row.locked!==false||row.skipped!==false||row.Invisible!==false)return false;
+    self.startupTargetReady=id;return true;
+  }).catch(function(){return false;});
+};
+Manager.prototype.waitStartupPlayback=function(){
+  var self=this;
+  self.startupMaintenancePending=true;
+  return new Promise(function(resolve){
+    var timer=setTimeout(function(){self.releaseNativeStartup();},30000);timer.unref();
+    self.releaseNativeStartup=function(){
+      clearTimeout(timer);self.releaseNativeStartup=function(){};resolve();
+    };
+    if(self.player.active&&self.player.readyState>=2&&self.player.width>0&&self.player.height>0)self.releaseNativeStartup();
+  });
+};
 Manager.prototype.start=function(){
   var self=this;
   // The native channel database is persistent; the Guide is a volatile SQLite
@@ -151,15 +189,13 @@ Manager.prototype.start=function(){
   var pending=u.read(path.join(self.base,'catalog-transaction.private.json'),null);
   if(pending){
     ready=ready.then(function(){return self.commit(pending);});
-  }else if(self.catalog.channels.length)ready=ready.then(function(){return nativeDb.apply(self.catalog,self.channelDb);}).then(function(){return u.refreshMap();});
+  }else if(self.catalog.channels.length)ready=ready.then(function(){return self.checkStartupTarget();}).then(function(fast){return fast?self.waitStartupPlayback():null;}).then(function(){return nativeDb.apply(self.catalog,self.channelDb);}).then(function(){return u.refreshMap();});
   ready.then(function(){self.nativeReady=true;}).catch(function(e){self.sync.error=u.safe(e);}).then(function(){
-    if(self.settings.account){
-      if(!self.history.lastSync||Date.now()-Date.parse(self.history.lastSync)>self.settings.syncHours*3600000)self.startSync();
-      else if(self.catalog.channels.length&&process.env.XTREAM_SKIP_INITIAL_GUIDE!=='1'&&(!fs.existsSync(self.guideDb)||Date.now()-self.lastBulk>self.settings.epgMinutes*60000))self.startGuide(true);
-    }
+    self.startupMaintenancePending=false;self.startupTargetReady=null;
+    self.queueInitialRefresh();
   });
   setInterval(function(){
-    if(!self.settings.account||self.saving||self.sync.running||self.guide.running)return;
+    if(self.initialRefreshPending||!self.settings.account||self.saving||self.sync.running||self.guide.running)return;
     if(!self.history.lastSync||Date.now()-Date.parse(self.history.lastSync)>self.settings.syncHours*3600000)self.startSync();
     else if(self.catalog.channels.length&&Date.now()-self.lastCurrent>Math.min(self.settings.epgMinutes,15)*60000)self.startGuide(false);
   },60000);

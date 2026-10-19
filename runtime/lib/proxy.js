@@ -1,14 +1,23 @@
 'use strict';
-var http=require('http'),https=require('https'),url=require('url'),URL=url.URL,crypto=require('crypto');
+var fs=require('fs'),http=require('http'),url=require('url'),URL=url.URL;
 module.exports=function(manager){
-  var targets=new Map();
-  function remember(target){var key=crypto.createHash('sha256').update(target).digest('hex').slice(0,32);targets.delete(key);targets.set(key,{url:target,time:Date.now()});while(targets.size>2000)targets.delete(targets.keys().next().value);return '/proxy/'+key;}
+  // These are opaque references, not authentication tokens. A bounded OS
+  // random read separates process lifetimes without loading TLS/crypto.
+  var nonce=Buffer.alloc(16),fd=fs.openSync('/dev/urandom','r');
+  try{var offset=0;while(offset<nonce.length){var n=fs.readSync(fd,nonce,offset,nonce.length-offset,null);if(!n)throw new Error('proxy_nonce_unavailable');offset+=n;}}finally{fs.closeSync(fd);}
+  var prefix=nonce.toString('hex'),serial=0,targets=new Map(),keys=new Map();
+  function remember(target){
+    var key=keys.get(target);if(!key){key=prefix+'_'+(++serial).toString(36);keys.set(target,key);}
+    targets.delete(key);targets.set(key,{url:target,time:Date.now()});
+    while(targets.size>2000){var oldest=targets.keys().next().value;keys.delete(targets.get(oldest).url);targets.delete(oldest);}
+    return '/proxy/'+key;
+  }
   function proxy(target,req,res,redirects){
     var parsed;try{parsed=new URL(target);}catch(e){res.writeHead(502);res.end();return;}
     if(!/^https?:$/.test(parsed.protocol)){res.writeHead(502);res.end();return;}
     var options=Object.assign(url.parse(parsed.href),{headers:{'User-Agent':'Mozilla/5.0 XtreamNative/1.0',Accept:'*/*'}});
     if(req.headers.range)options.headers.Range=req.headers.range;
-    var upstream=(parsed.protocol==='https:'?https:http).get(options,function(response){
+    var upstream=(parsed.protocol==='https:'?require('https'):http).get(options,function(response){
       if(response.statusCode>=300&&response.statusCode<400&&response.headers.location&&redirects<6){response.resume();try{return proxy(new URL(response.headers.location,target).href,req,res,redirects+1);}catch(e){res.writeHead(502);res.end();return;}}
       if(response.statusCode!==200&&response.statusCode!==206){response.resume();if(!res.headersSent)res.writeHead(response.statusCode===404?404:502);res.end();return;}
       var type=response.headers['content-type'] || '';

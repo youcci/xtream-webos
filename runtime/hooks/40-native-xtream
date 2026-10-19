@@ -3,8 +3,14 @@ set -eu
 P=/var/lib/xtream-native
 [ -f "$P/enabled" ] || exit 0
 mkdir -p /run/systemd/system
-cp "$P/xtream-native-boot.service" /run/systemd/system/xtream-native-boot.service
-systemctl daemon-reload
+units_changed=0
+for name in xtream-native-boot xtream-native-provider xtream-native; do
+    if ! cmp -s "$P/$name.service" "/run/systemd/system/$name.service"; then
+        cp "$P/$name.service" "/run/systemd/system/$name.service"
+        units_changed=1
+    fi
+done
+if [ "$units_changed" = 1 ]; then systemctl daemon-reload; fi
 # Let root startup continue with unrelated preload policies while this unit
 # prepares native channels, the Guide, services and the player concurrently.
 systemctl start --no-block xtream-native-boot.service

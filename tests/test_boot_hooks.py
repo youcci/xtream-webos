@@ -26,7 +26,8 @@ class BootHookTests(unittest.TestCase):
         ]:
             path.write_text(source)
             path.chmod(0o700)
-        (self.runtime / 'xtream-native-boot.service').write_text((ROOT / 'runtime/xtream-native-boot.service').read_text())
+        for name in ('xtream-native-boot', 'xtream-native-provider', 'xtream-native'):
+            (self.runtime / (name + '.service')).write_text((ROOT / ('runtime/' + name + '.service')).read_text())
 
     def run_hook(self, name):
         source = (ROOT / 'runtime/hooks' / name).read_text().replace('/var/lib/xtream-native', str(self.runtime)).replace('/run/systemd/system', str(self.units))
@@ -43,6 +44,18 @@ class BootHookTests(unittest.TestCase):
         (self.runtime / 'enabled').touch()
         self.run_hook('60-native-xtream')
         self.assertEqual(self.log.read_text().splitlines(), ['legacy-start'])
+
+    def test_existing_early_units_do_not_trigger_an_unneeded_global_reload(self):
+        (self.runtime / 'enabled').touch()
+        self.run_hook('40-native-xtream')
+        self.log.write_text('')
+        self.run_hook('40-native-xtream')
+        self.assertEqual(self.log.read_text().splitlines(), ['start --no-block xtream-native-boot.service'])
+        with (self.runtime / 'xtream-native.service').open('a') as target:
+            target.write('\n# Changed unit\n')
+        self.log.write_text('')
+        self.run_hook('40-native-xtream')
+        self.assertEqual(self.log.read_text().splitlines(), ['daemon-reload', 'start --no-block xtream-native-boot.service'])
 
     def test_disabled_hooks_do_not_create_or_start_units(self):
         self.run_hook('40-native-xtream')

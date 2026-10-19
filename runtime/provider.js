@@ -33,6 +33,7 @@ handler('ping',function(){return {returnValue:true};});
 var nativeSocket=path.join(__dirname,'native.sock');
 try{fs.unlinkSync(nativeSocket);}catch(e){if(e.code!=='ENOENT')throw e;}
 var allowed=[
+  'luna://com.webos.service.iepg/getChannelInfo',
   'luna://com.webos.service.utp.channel/getChannelSortMode',
   'luna://com.webos.service.utp.channel/setChannelSortMode',
   'luna://com.webos.applicationManager/launch',
