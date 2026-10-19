@@ -24,6 +24,8 @@ start)
         target="/usr/palm/applications/com.webos.app.livemenu/qml/$relative"
         grep -q " $target " /proc/mounts || mount --bind "$P/patches/$relative" "$target"
     done
+    systemctl daemon-reload
+    systemctl start xtream-native-provider.service xtream-native.service
     # LG restores a precompiled Guide process from CRIU. Invalidate only that
     # app's checkpoint when our QML or its firmware executable changes, so the
     # next Guide launch reads the mounted files and generates a fresh snapshot.
@@ -35,8 +37,6 @@ start)
         done
         printf '%s\n' "$ui_version" > "$P/native-ui-version"
     fi
-    systemctl daemon-reload
-    systemctl start xtream-native-provider.service xtream-native.service
     attempt=0
     while [ "$attempt" -lt 10 ]; do
         if curl --max-time 1 -fs --unix-socket "$P/native.sock" -H 'Content-Type: application/json' -d '{"uri":"ping"}' http://localhost/ >/dev/null 2>&1; then break; fi

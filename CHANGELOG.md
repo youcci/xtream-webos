@@ -1,5 +1,10 @@
 # Change log
 
+## Unreleased — boot timing follow-up (2026-10-19)
+
+- Start provider/manager after compatibility checks, Guide restoration and overlay mounts, allowing their initialization to overlap the independent Guide checkpoint hash check.
+- A physical reboot resumed decoded 720p video at 66.69 seconds with no manual tuning. The earlier 55.88-second measurement remains valid for its recorded boot; LG/Homebrew startup timing varies, so this follow-up does not establish a faster overall boot or a sub-30-second result. On the earlier boot the first supported Homebrew hook already started at 38.59 seconds, preventing a sub-30 result through that hook path.
+
 ## Unreleased — early Linux boot preparation (2026-10-19)
 
 - Queue an on-TV Linux systemd oneshot from the earlier `40-native-xtream` hook. Restore Guide/overlays and start the integration in parallel with unrelated preload work. The late hook reuses the same job and retains its legacy fallback; root persistence scripts stay intact.
