@@ -6,7 +6,7 @@ function fallback(){return {channelId:'1_0_1_0_0_0_0',channelName:'',channelMode
 function fixture(options){
   options=options||{};
   var f={time:100000,uptime:80,calls:[],foreground:'com.webos.app.livetv',channel:fallback(),claimed:false};
-  f.manager={base:'/unused',history:{lastChannelId:'owned'},byNative:{owned:{nativeId:'owned'}},nativeReady:true,sync:{running:false},player:{}};
+  f.manager={base:'/unused',history:{lastChannelId:'owned'},byNative:{owned:{nativeId:'owned'}},nativeReady:true,playerReadyAt:f.time,sync:{running:false},player:{}};
   if(options.manager)options.manager(f.manager);
   f.call=function(uri,payload){
     f.calls.push({method:uri.split('/').pop(),payload:payload});
@@ -17,9 +17,9 @@ function fixture(options){
   };
   f.resume=new Resume(f.manager,{boot:function(){return {uptime:options.late?500:f.uptime};},claim:function(){if(options.claimed)return false;f.claimed=true;return true;},now:function(){return f.time;},call:function(uri,payload){return f.call(uri,payload);}});
   f.advance=function(ms){f.time+=ms;f.uptime+=ms/1000;};
-  f.advance(10000);return f;
+  f.advance(1000);return f;
 }
-async function select(f){await f.resume.tick();f.advance(5000);return f.resume.tick();}
+async function select(f){await f.resume.tick();f.advance(2000);return f.resume.tick();}
 function launches(f){return f.calls.filter(function(c){return c.method==='launch';});}
 test('stable boot fallback resumes the saved imported channel exactly once',async function(){
   var f=fixture();assert.strictEqual(await select(f),true);
@@ -29,11 +29,20 @@ test('stable boot fallback resumes the saved imported channel exactly once',asyn
   f.manager.player={channelId:'owned',updatedAt:f.time,active:true,readyState:4,width:1280,height:720};
   assert.strictEqual(await f.resume.tick(),true);assert.strictEqual(f.resume.state.status,'resumed');assert(f.resume.state.resumedAt);
 });
-test('startup grace and native map readiness delay inspection',async function(){
-  var f=fixture();f.advance(-5000);await f.resume.tick();assert.strictEqual(f.calls.length,0);
-  f.advance(5000);f.manager.nativeReady=false;await f.resume.tick();assert.strictEqual(f.calls.length,0);
+test('native map readiness and pending writes delay inspection',async function(){
+  var f=fixture();f.manager.nativeReady=false;await f.resume.tick();assert.strictEqual(f.calls.length,0);
   f.manager.nativeReady=true;f.manager.sync.running=true;await f.resume.tick();assert.strictEqual(f.calls.length,0);
   f.manager.sync.running=false;assert.strictEqual(await select(f),true);
+});
+test('ready native services resume after two stable seconds without the old startup sleep',async function(){
+  var f=fixture();await f.resume.tick();f.advance(1000);await f.resume.tick();assert.strictEqual(launches(f).length,0);
+  f.advance(1000);assert.strictEqual(await f.resume.tick(),true);assert.strictEqual(launches(f).length,1);
+  assert.strictEqual(f.resume.state.timings.nativeReady,81);assert.strictEqual(f.resume.state.timings.channelSelected,83);
+});
+test('page readiness unlocks the fast path while an absent page has a bounded fallback',async function(){
+  var f=fixture();f.manager.playerReadyAt=0;await f.resume.tick();assert.strictEqual(f.calls.length,0);
+  f.manager.playerReadyAt=f.time;assert.strictEqual(await select(f),true);assert(f.resume.state.timings.playerReady);
+  f=fixture();f.manager.playerReadyAt=0;f.advance(9000);assert.strictEqual(await select(f),true);assert.strictEqual(f.resume.state.timings.playerReady,null);
 });
 test('a service restart in the same boot and a late install never select',async function(){
   for(var options of [{claimed:true},{late:true}]){var f=fixture(options);await select(f);assert.strictEqual(f.calls.length,0);assert.strictEqual(f.resume.state.status,'skipped');}
@@ -67,7 +76,8 @@ test('history or catalogue changes during native reads prevent selection',async 
 test('native boot errors are sanitized and require a fresh stable observation',async function(){
   var f=fixture(),call=f.call;f.call=function(){return Promise.reject(new Error('private native data'));};
   assert.strictEqual(await f.resume.tick(),false);assert.strictEqual(f.resume.state.lastError,'Startup resume unavailable at foreground');
-  f.call=call;f.advance(5000);await f.resume.tick();assert.strictEqual(launches(f).length,0);f.advance(5000);assert.strictEqual(await f.resume.tick(),true);
+  var count=f.calls.length;f.call=call;f.advance(1000);await f.resume.tick();assert.strictEqual(f.calls.length,count);
+  f.advance(4000);await f.resume.tick();assert.strictEqual(launches(f).length,0);f.advance(2000);assert.strictEqual(await f.resume.tick(),true);
 });
 test('a timed-out launch is never sent again even if its acknowledgement was lost',async function(){
   var f=fixture(),call=f.call;f.call=function(uri,payload){var reply=call(uri,payload);return /launch$/.test(uri)?Promise.reject(new Error('lost response')):reply;};

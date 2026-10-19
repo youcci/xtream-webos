@@ -1,5 +1,12 @@
 # Change log
 
+## Unreleased — faster startup resume (2026-10-19)
+
+- Replace the fixed ten-second service grace with actual native database/map and page readiness. Poll every second, then require two seconds of stable fallback selection before tuning. A missing page still gets a bounded ten-second grace before the existing recovery fallback. Retain foreground, channel ownership, native lock handling and once-per-boot guards.
+- Back off failed native probes for five seconds despite the faster normal polling. Add boot-relative stage timings so startup delays can be measured without confusing a launch acknowledgement with decoded playback.
+- Add regression cases for early selection after actual readiness and bounded missing-page fallback; sixteen resume cases now cover the faster path and existing exclusions.
+- Physical reboot validation without manual tuning: service constructed at 69.69 seconds uptime, native/page readiness observed at 72.52, channel selected at 75.54 and decoded 720p video observed at 77.52. The preceding measured boot first showed decoded video at 90.03 seconds (service start 63.25). Service-to-video overhead fell from about 27 seconds to 7.83; total boot time varies before the integration starts.
+
 ## Unreleased — last-channel startup resume (2026-10-19)
 
 - Resume the last successfully watched, still-imported Xtream channel once per real boot when LiveTV starts on LG's empty terrestrial fallback. Wait for native initialization and two stable fallback observations; cancel for another app or selected channel. Normal native selection retains parental-lock handling.

@@ -20,12 +20,13 @@ function placeholder(channel){
 }
 function Resume(manager,options){
   options=options||{};this.manager=manager;this.call=options.call||u.luna;this.now=options.now||Date.now;
-  this.boot=options.boot||boot;this.startedAt=this.now();this.busy=false;this.done=false;this.selected=false;this.observedAt=null;
+  this.boot=options.boot||boot;this.startedAt=this.now();this.nextAttemptAt=0;this.busy=false;this.done=false;this.selected=false;this.observedAt=null;
   this.targetId=manager.history.lastChannelId;
-  this.state={status:'waiting',reason:null,attempts:0,lastStage:'boot',lastError:null,resumedAt:null};
+  this.state={status:'waiting',reason:null,attempts:0,lastStage:'boot',lastError:null,resumedAt:null,timings:{serviceStarted:null,nativeReady:null,playerReady:null,fallbackObserved:null,channelSelected:null,videoDecoded:null}};
   try{
     var info=this.boot();
     if(!Number.isFinite(info.uptime)||info.uptime<0)throw new Error('uptime_unavailable');
+    this.state.timings.serviceStarted=info.uptime;
     if(info.uptime>=300)this.finish('skipped','outside-boot-window');
     else if(!(options.claim||claim)(options.markerDir||'/run/xtream-native'))this.finish('skipped','already-checked-this-boot');
     else if(!this.target())this.finish('skipped','no-imported-history');
@@ -53,37 +54,44 @@ Resume.prototype.inspect=function(){
   });
 };
 Resume.prototype.tick=function(){
-  var self=this;
-  if(self.done||self.busy||self.now()-self.startedAt<10000)return Promise.resolve(false);
+  var self=this,uptime;
+  if(self.done||self.busy||self.now()<self.nextAttemptAt)return Promise.resolve(false);
   try{
-    if(self.boot().uptime>=300){self.finish(self.selected?'failed':'skipped','boot-window-ended');return Promise.resolve(false);}
+    uptime=self.boot().uptime;
+    if(uptime>=300){self.finish(self.selected?'failed':'skipped','boot-window-ended');return Promise.resolve(false);}
   }catch(e){self.finish('skipped','boot-state-unavailable');return Promise.resolve(false);}
   var player=self.manager.player||{};
   if(self.selected){
     if(player.channelId===self.targetId&&player.active&&player.readyState>=2&&player.width>0&&player.height>0&&self.now()-player.updatedAt<15000){
-      self.state.resumedAt=new Date(self.now()).toISOString();self.state.lastError=null;self.finish('resumed','last-watched-channel');return Promise.resolve(true);
+      self.state.timings.videoDecoded=uptime;self.state.resumedAt=new Date(self.now()).toISOString();self.state.lastError=null;self.finish('resumed','last-watched-channel');return Promise.resolve(true);
     }
     return Promise.resolve(false);
   }
   if(!self.target()){self.finish('skipped','history-or-selection-changed');return Promise.resolve(false);}
   if(!self.manager.nativeReady||self.manager.sync.running||self.manager.saving)return Promise.resolve(false);
+  if(self.state.timings.nativeReady===null)self.state.timings.nativeReady=uptime;
+  // Usually the page acknowledges readiness first. Do not race its startup,
+  // but retain a bounded fallback so an absent app can be selected/recovered.
+  if(self.manager.playerReadyAt){if(self.state.timings.playerReady===null)self.state.timings.playerReady=uptime;}
+  else if(self.now()-self.startedAt<10000){self.state.lastStage='waiting-player-page';return Promise.resolve(false);}
   self.busy=true;self.state.attempts++;
   return self.inspect().then(function(channel){
     if(!channel)return false;
     if(!placeholder(channel)){self.finish('skipped','another-channel');return false;}
-    if(self.observedAt===null){self.observedAt=self.now();return false;}
-    if(self.now()-self.observedAt<5000)return false;
+    if(self.observedAt===null){self.observedAt=self.now();self.state.timings.fallbackObserved=self.boot().uptime;return false;}
+    if(self.now()-self.observedAt<2000)return false;
     // Recheck after asynchronous native reads. Use the ordinary TV selection
     // path so LG retains its lock/parental-control handling for the target.
     if(!self.target()||!self.manager.nativeReady||self.manager.sync.running||self.manager.saving)return false;
-    if(self.boot().uptime>=300){self.finish('skipped','boot-window-ended');return false;}
-    self.selected=true;self.state.status='awaiting-playback';
+    var selectedUptime=self.boot().uptime;
+    if(selectedUptime>=300){self.finish('skipped','boot-window-ended');return false;}
+    self.selected=true;self.state.status='awaiting-playback';self.state.timings.channelSelected=selectedUptime;
     // A timed-out launch may still have taken effect. Never send it twice.
     return self.request('selecting-channel',APP+'launch',{id:'com.webos.app.livetv',params:{id:'channelChange',channelId:self.targetId}}).then(function(){self.state.lastError=null;return true;});
   }).catch(function(){
-    self.observedAt=null;self.state.lastError='Startup resume unavailable at '+self.state.lastStage;return false;
+    self.observedAt=null;self.nextAttemptAt=self.now()+5000;self.state.lastError='Startup resume unavailable at '+self.state.lastStage;return false;
   }).then(function(result){self.busy=false;return result;});
 };
-Resume.prototype.start=function(){var self=this;if(!self.done&&!self.timer){self.timer=setInterval(function(){self.tick();},5000);self.timer.unref();}};
+Resume.prototype.start=function(){var self=this;if(!self.done&&!self.timer){self.timer=setInterval(function(){self.tick();},1000);self.timer.unref();}};
 Resume.claim=claim;
 module.exports=Resume;

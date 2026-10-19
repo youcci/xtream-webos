@@ -64,6 +64,8 @@ Allow roughly 60 seconds after a real boot. Confirm Homebrew Channel root/startu
 
 On the tested TV, a full reboot returned LiveTV to its empty default terrestrial channel. The startup-resume worker now selects the last successfully watched imported Xtream channel from that specific fallback. Check `startupResume` in `/status`: it must reach `resumed` after actual video telemetry, rather than merely acknowledging a launch. It runs once per boot within five minutes, waits for native initialization, and cancels for another app or a real channel selection. Removed-category channels and missing history are skipped. A management-service restart does not trigger another selection; suspend/wake does not count as a reboot. The missing-player watchdog remains independent and does not choose history as its recovery target.
 
+For slow startup, compare `startupResume.timings` (seconds of TV uptime). `serviceStarted` separates earlier TV/root-hook startup from the integration; `nativeReady` and `playerReady` identify readiness delays; `channelSelected` and `videoDecoded` separate tuning from decode. The measured faster-resume boot decoded video at 77.52 seconds, including 69.69 seconds before the manager was constructed. That is a measured result for this setup, not a fixed boot-time guarantee.
+
 ## Native requests fail or Node aborts
 
 The manager must use the resident provider's `native.sock` LS2 bridge. Do not replace it with repeated Node child-process `luna-send` calls. Standalone CLI calls on this firmware need `< /dev/zero`. Avoid feeding a script to the TV's Node 8 stdin when it spawns children; use a file or `node -e` instead. The host tool compresses long `node -e` scripts to fit Dropbear's remote-command limit.

@@ -42,7 +42,7 @@ Tests do not replace physical tuning, sound, native Guide lifecycle, HDMI transi
 
 Playback recovery tests cover native ownership/foreground gates, RF/locked/foreign channels, healthy heartbeats, startup/transition grace, cooldown, in-flight heartbeat recovery, sanitized errors, overlapping checks, missing-app startup, selection changes, bounded launch readiness and page acknowledgement before native replay. Distinguish a missing page from a missing app when reproducing a failure. Do not induce a blank player on a live TV without accounting for the viewer; a real recovery test briefly interrupts video.
 
-Startup-resume tests cover exclusive boot-runtime marker persistence/reset, service restarts, the boot deadline, native readiness, empty-fallback recognition, other apps/channels, changing history/catalogue, bounded native failures, uncertain launch acknowledgements and decoded playback confirmation. A physical reboot test must avoid manual tuning so that it actually exercises automatic selection.
+Startup-resume tests cover exclusive boot-runtime marker persistence/reset, service restarts, the boot deadline, native readiness, the two-second stability check without a fixed startup sleep, empty-fallback recognition, other apps/channels, changing history/catalogue, native-failure backoff, uncertain launch acknowledgements and decoded playback confirmation. A physical reboot test must avoid manual tuning so that it actually exercises automatic selection. Compare boot-relative `startupResume.timings` with the service's systemd monotonic start timestamp when measuring improvements.
 
 ## Packaging
 
