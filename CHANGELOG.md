@@ -1,5 +1,11 @@
 # Change log
 
+## Unreleased — startup Home allowance (2026-10-23)
+
+- Investigate a power-on black screen with both services and current channel/Guide refresh healthy. The TV was on its empty terrestrial fallback, the hidden player was absent, and startup had canceled with `another-app` after early foreground-query failures. The earlier status did not retain that app's identity. Selecting the saved imported channel allowed the existing guarded watchdog to recreate the player and restore decoded 720p video.
+- Allow initial LG Home until 90 seconds of boot uptime, without launching over it. Still cancel for other apps, actual channel selections, persistent Home, or Home after Live TV was observed. Record only a coarse foreground class in resume diagnostics. Extend opt-in player preparation through delayed startup; normal preparation keeps its 30-second deadline.
+- Add five regression cases for transient/persistent Home, delayed player readiness and user app changes. All 101 offline tests pass. A baseline reboot decoded at 39.59 seconds; a reboot with the correction decoded at 44.54 seconds, without manual tuning or watchdog recovery. These trials validate normal reboot startup; the original intermittent non-TV foreground sequence was not reproduced.
+
 ## Unreleased — persistent entry before Homebrew (2026-10-19)
 
 - Add original ARM32 soft-float loader source, reproducible owner-libc build, manual deployment and guarded removal for an optional TTS environment-file entry. It ran as root around 16 seconds without modifying read-only firmware or Homebrew's persistence code. The default installer does not enable it.

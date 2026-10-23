@@ -59,9 +59,30 @@ test('missing history and removed-category channels cannot be resumed',async fun
   for(var id of [undefined,'removed']){var f=fixture({manager:function(m){m.history.lastChannelId=id;}});await select(f);assert.strictEqual(f.calls.length,0);assert.strictEqual(f.resume.state.reason,'no-imported-history');}
 });
 test('other foreground apps cancel this boot instead of waiting to interrupt them later',async function(){
-  for(var app of ['netflix','com.webos.app.hdmi1','com.webos.app.home']){
+  for(var app of ['netflix','com.webos.app.hdmi1']){
     var f=fixture();f.foreground=app;await f.resume.tick();f.foreground='com.webos.app.livetv';await select(f);assert.strictEqual(launches(f).length,0);assert.strictEqual(f.resume.state.reason,'another-app');
   }
+});
+test('transient boot Home waits without mutations, then requires stable Live TV fallback',async function(){
+  var f=fixture();f.foreground='com.webos.app.home';
+  await f.resume.tick();assert.strictEqual(f.resume.done,false);assert.strictEqual(f.resume.state.lastStage,'waiting-live-tv');
+  assert.strictEqual(f.resume.state.lastForeground,'home');assert.strictEqual(f.calls.length,1);
+  f.advance(2000);await f.resume.tick();assert.strictEqual(launches(f).length,0);
+  f.foreground='com.webos.app.livetv';await f.resume.tick();assert.strictEqual(launches(f).length,0);
+  f.advance(2000);assert.strictEqual(await f.resume.tick(),true);assert.strictEqual(launches(f).length,1);
+  assert.strictEqual(f.resume.state.lastForeground,'live-tv');
+});
+test('Home allowance expires at ninety seconds and cannot retune a later return to TV',async function(){
+  var f=fixture();f.foreground='com.webos.app.home';await f.resume.tick();f.uptime=90;
+  await f.resume.tick();assert.strictEqual(f.resume.state.reason,'another-app');
+  f.foreground='com.webos.app.livetv';await select(f);assert.strictEqual(launches(f).length,0);
+});
+test('Home after an observed TV or a different app cancels the pending resume',async function(){
+  var f=fixture();await f.resume.tick();f.foreground='com.webos.app.home';await f.resume.tick();
+  assert.strictEqual(f.resume.state.reason,'another-app');assert.strictEqual(launches(f).length,0);
+  f=fixture();f.foreground='com.webos.app.home';await f.resume.tick();f.foreground='netflix';await f.resume.tick();
+  assert.strictEqual(f.resume.state.reason,'another-app');assert.strictEqual(f.resume.state.lastForeground,'other');
+  f.foreground='com.webos.app.livetv';await select(f);assert.strictEqual(launches(f).length,0);
 });
 test('configured RF, imported, locked, incomplete and unknown selections are preserved',async function(){
   var channels=[{channelId:'owned',isLocked:false},{channelId:'RF',isLocked:false},{channelId:'foreign',isLocked:false}];

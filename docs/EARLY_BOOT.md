@@ -45,7 +45,7 @@ Boot timing varies. These measurements do not promise the same result on every r
 
 On the tested firmware, the shipped Live TV QML deliberately requests the last **RF** channel during an ordinary boot. It requests the last channel across input types in other paths. This explains why remembering the last IP channel in UTP is insufficient to make stock startup select it.
 
-The existing resume controller uses Live TV's ordinary `channelChange` launch parameters to select the saved imported channel, retaining the native selection and lock path. It first checks that Live TV is foreground and LG's exact empty RF fallback is still selected. Another app, a real RF channel, changed history or a different channel cancels resume.
+The existing resume controller uses Live TV's ordinary `channelChange` launch parameters to select the saved imported channel, retaining the native selection and lock path. It first checks that Live TV is foreground and LG's exact empty RF fallback is still selected. Another app, a real RF channel, changed history or a different channel cancels resume. Before its first Live TV observation, the controller allows LG Home until 90 seconds of boot uptime without tuning over it. Persistent Home or returning Home after Live TV cancels resume. The opt-in player bootstrap also stays available for up to 90 seconds after it starts; ordinary bootstrap retains its 30-second limit.
 
 No additional Live TV QML overlay was deployed for this experiment. The native input app may already have loaded its QML or been restored from a snapshot before the early loader runs, so a late file overlay is not proof that the running app will use it.
 

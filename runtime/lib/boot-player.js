@@ -8,7 +8,9 @@ function configure(options){
   options=options||{};
   var call=options.call||u.luna,now=options.now||Date.now;
   var sleep=options.sleep||function(ms){return new Promise(function(resolve){setTimeout(resolve,ms);});};
-  var deadline=now()+30000;
+  // Keep the opt-in bootstrap alive through the initial Home allowance. All
+  // launches still require two fresh Live TV/empty-fallback observations.
+  var deadline=now()+(options.earlyLaunch?90000:30000);
   var launchAttempted=false;
   function bootContext(){
     return call('luna://com.webos.applicationManager/getForegroundAppInfo',{}).then(function(foreground){

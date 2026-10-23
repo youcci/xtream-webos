@@ -64,6 +64,17 @@ test('opt-in early bootstrap starts a hidden player only after two native fallba
 test('another foreground app cannot trigger an early hidden-player launch',async function(){
   var f=earlyFixture();f.foreground='other';assert.strictEqual(await configure(f.options),false);assert(!f.calls.includes('launch'));
 });
+test('early bootstrap survives transient Home beyond the ordinary thirty-second window',async function(){
+  var f=earlyFixture(),call=f.call;f.foreground='com.webos.app.home';
+  f.call=function(uri,payload){if(f.time>=35000)f.foreground='com.webos.app.livetv';return call(uri,payload);};
+  assert.strictEqual(await configure(f.options),true);assert.strictEqual(f.calls.filter(function(m){return m==='launch';}).length,1);
+  assert(f.time>=35000&&f.time<90000);
+});
+test('persistent Home reaches the bounded early deadline without a player launch',async function(){
+  var f=earlyFixture();f.foreground='com.webos.app.home';
+  assert.strictEqual(await configure(f.options),false);assert.strictEqual(f.time,90000);
+  assert(!f.calls.includes('launch'));assert(!f.calls.includes('setDmostUrl'));
+});
 test('an existing early launch claim prevents a duplicate JS launch',async function(){
   var f=earlyFixture();f.options.claimEarlyPlayer=function(){return false;};assert.strictEqual(await configure(f.options),false);assert(!f.calls.includes('launch'));
 });
@@ -84,7 +95,7 @@ test('an uncertain early launch acknowledgement is never sent twice',async funct
 });
 test('slow prelaunch inspection cannot initiate a launch after the deadline',async function(){
   var f=earlyFixture(),call=f.call;
-  f.call=function(uri,payload){var result=call(uri,payload);if(/getCurrentChannel$/.test(uri))f.time=30000;return result;};
+  f.call=function(uri,payload){var result=call(uri,payload);if(/getCurrentChannel$/.test(uri))f.time=90000;return result;};
   assert.strictEqual(await configure(f.options),false);assert(!f.calls.includes('launch'));
 });
 test('parallel manager startup waits for bridge readiness instead of failing on a missing socket',async function(){

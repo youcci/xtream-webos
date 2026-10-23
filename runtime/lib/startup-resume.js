@@ -20,9 +20,9 @@ function placeholder(channel){
 }
 function Resume(manager,options){
   options=options||{};this.manager=manager;this.call=options.call||u.luna;this.now=options.now||Date.now;
-  this.boot=options.boot||boot;this.startedAt=this.now();this.nextAttemptAt=0;this.busy=false;this.done=false;this.selected=false;this.observedAt=null;
+  this.boot=options.boot||boot;this.startedAt=this.now();this.nextAttemptAt=0;this.busy=false;this.done=false;this.selected=false;this.observedAt=null;this.sawLiveTv=false;
   this.targetId=manager.history.lastChannelId;
-  this.state={status:'waiting',reason:null,attempts:0,lastStage:'boot',lastError:null,failures:[],resumedAt:null,timings:{serviceStarted:null,nativeReady:null,playerReady:null,fallbackObserved:null,channelSelected:null,videoDecoded:null}};
+  this.state={status:'waiting',reason:null,attempts:0,lastStage:'boot',lastForeground:null,lastError:null,failures:[],resumedAt:null,timings:{serviceStarted:null,nativeReady:null,playerReady:null,fallbackObserved:null,channelSelected:null,videoDecoded:null}};
   var cpu=process.cpuUsage();this.state.processCpuAtStartMs=Math.round((cpu.user+cpu.system)/1000);
   try{
     var info=this.boot();
@@ -46,7 +46,15 @@ Resume.prototype.inspect=function(){
   var self=this;
   return self.request('foreground',APP+'getForegroundAppInfo',{}).then(function(foreground){
     if(!foreground.appId)throw new Error('foreground_unavailable');
+    self.state.lastForeground=foreground.appId==='com.webos.app.livetv'?'live-tv':foreground.appId==='com.webos.app.home'?'home':'other';
+    // Home can briefly own the foreground while LG restores Live TV. Never
+    // launch over Home: wait only during initial boot, before observing TV.
+    // Once TV was observed, returning Home is a user choice and cancels resume.
+    if(foreground.appId==='com.webos.app.home'&&!self.sawLiveTv&&self.boot().uptime<90){
+      self.observedAt=null;self.state.lastStage='waiting-live-tv';self.state.lastError=null;return null;
+    }
     if(foreground.appId!=='com.webos.app.livetv'){self.finish('skipped','another-app');return null;}
+    self.sawLiveTv=true;
     return self.request('tv-binding',TV+'bind',{}).then(function(binding){
       if(!binding.binded||!binding.broadcastId)throw new Error('binding_unavailable');
       return self.request('selected-channel',TV+'getCurrentChannel',{broadcastId:binding.broadcastId,subscribe:false});
